@@ -20,10 +20,7 @@ defineProps({
 </script>
 
 <template>
-    <Head title="Welcome to SNSU iReserve">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <Head title="Welcome">
     </Head>
 
     <div class="min-h-screen relative overflow-hidden">
@@ -63,30 +60,13 @@ defineProps({
         <!-- Main Content Container -->
         <div class="relative z-10 min-h-screen flex items-center justify-center">
             <div class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-                <!-- Logo and Title Container - Horizontal Layout -->
-                <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-4 mb-12">
-                    <!-- Logo -->
-                    <div class="flex-shrink-0">
-                        <img
-                            src="/images/logo.png"
-                            alt="SNSU Logo"
-                            class="h-40 w-auto md:h-48"
-                        />
-                    </div>
-
-                    <!-- Text Content -->
-                    <div class="text-center md:text-left">
-                        <h1 class="text-4xl md:text-6xl lg:text-7xl font-black text-green-800 mb-1 leading-none tracking-tight" style="font-family: 'Poppins', sans-serif;">
-                            <div>SNSU</div>
-                            <div>iReserve</div>
-                        </h1>
-                        <p class="text-lg md:text-xl lg:text-2xl text-green-700 font-bold leading-tight tracking-normal" style="font-family: 'Poppins', sans-serif;">
-                            Science Laboratory Equipment
-                        </p>
-                        <p class="text-lg md:text-xl lg:text-2xl text-green-700 font-bold tracking-normal" style="font-family: 'Poppins', sans-serif;">
-                            Management System
-                        </p>
-                    </div>
+                <!-- Logo Container -->
+                <div class="text-center -mb-12">
+                    <img
+                        src="/images/LT.png"
+                        alt="SNSU iReserve Logo"
+                        class="mx-auto h-96 w-auto"
+                    />
                 </div>
 
                 <!-- Get Started Button -->
@@ -100,7 +80,7 @@ defineProps({
                     </Link>
                     <Link
                         v-else-if="$page.props.auth.user"
-                        :href="route('dashboard')"
+                        :href="$page.props.auth.user.role === 'admin' ? route('dashboard') : $page.props.auth.user.role === 'faculty_staff' ? route('faculty.dashboard') : route('student.dashboard')"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-full font-semibold text-lg transition duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                     >
                         Go to Dashboard

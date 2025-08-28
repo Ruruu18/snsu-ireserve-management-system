@@ -40,12 +40,12 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => 'student', // Automatically assign student role
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        // Don't log the user in automatically - redirect to login with verification message
+        return redirect()->route('login')->with('status', 'Registration successful! Please check your email for a verification link before logging in.');
     }
 }

@@ -33,7 +33,24 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = $request->user();
+
+        // Check if user's email is verified
+        if (!$user->hasVerifiedEmail()) {
+            // Log out the user and redirect to verification notice
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Please verify your email address before logging in. Check your email for the verification link.'
+            ]);
+        }
+
+        // Redirect based on user role
+        $dashboardRoute = $user->getDashboardRoute();
+
+        return redirect()->intended(route($dashboardRoute, absolute: false));
     }
 
     /**
@@ -47,6 +64,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }

@@ -1,9 +1,6 @@
 <script setup>
 import Checkbox from '@/Components/Checkbox.vue';
-import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
@@ -30,89 +27,114 @@ const submit = () => {
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Sign In - IReserve" />
+    <Head title="Login" />
 
-        <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-            <p class="text-gray-600">Sign in to your IReserve account</p>
-        </div>
+    <!-- Full Screen Background with Backdrop -->
+    <div class="min-h-screen relative flex items-center justify-center"
+         style="background-image: url('/images/Backdrop.png'); background-size: cover; background-position: center; background-repeat: no-repeat;">
 
-        <div v-if="status" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p class="text-sm font-medium text-green-600">{{ status }}</p>
-        </div>
+        <!-- Overlay for better contrast -->
+        <div class="absolute inset-0 bg-black bg-opacity-20"></div>
 
-        <form @submit.prevent="submit" class="space-y-6">
-            <div>
-                <InputLabel for="email" value="Email Address" class="text-gray-700 font-medium" />
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
-                    v-model="form.email"
-                    required
-                    autofocus
-                    autocomplete="username"
-                    placeholder="Enter your email"
-                />
-                <InputError class="mt-2" :message="form.errors.email" />
+        <!-- Main Content Container -->
+        <div class="relative z-10 w-full max-w-md mx-4">
+            <!-- Logo Section - Above white container -->
+            <div class="text-center -mb-20">
+                <img src="/images/LT.png" alt="SNSU Logo" class="mx-auto h-96 w-auto">
             </div>
 
-            <div>
-                <InputLabel for="password" value="Password" class="text-gray-700 font-medium" />
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-2 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
-                    v-model="form.password"
-                    required
-                    autocomplete="current-password"
-                    placeholder="Enter your password"
-                />
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
+            <!-- Login Form Card -->
+            <div class="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
 
-            <div class="flex items-center justify-between">
-                <label class="flex items-center">
-                    <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ml-2 text-sm text-gray-600">Remember me</span>
-                </label>
+                <div v-if="status" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-sm font-medium text-green-600">{{ status }}</p>
+                </div>
 
-                <Link
-                    v-if="canResetPassword"
-                    :href="route('password.request')"
-                    class="text-sm text-indigo-600 hover:text-indigo-500 font-medium transition duration-200"
-                >
-                    Forgot password?
-                </Link>
-            </div>
+                <!-- Login Form -->
+                <form @submit.prevent="submit" class="space-y-4">
+                    <!-- Email Field -->
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+                            </svg>
+                        </div>
+                        <TextInput
+                            id="email"
+                            type="email"
+                            class="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
+                            v-model="form.email"
+                            required
+                            autofocus
+                            autocomplete="username"
+                            placeholder="Email"
+                        />
+                        <InputError class="mt-1 text-xs" :message="form.errors.email" />
+                    </div>
 
-            <PrimaryButton
-                class="w-full justify-center py-3 px-4 text-base font-medium rounded-lg transition duration-200 transform hover:scale-[1.02]"
-                :class="{ 'opacity-75 cursor-not-allowed': form.processing }"
-                :disabled="form.processing"
-            >
-                <span v-if="form.processing" class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                </span>
-                <span v-else>Sign In</span>
-            </PrimaryButton>
+                    <!-- Password Field -->
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <TextInput
+                            id="password"
+                            type="password"
+                            class="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
+                            v-model="form.password"
+                            required
+                            autocomplete="current-password"
+                            placeholder="Password"
+                        />
+                        <InputError class="mt-1 text-xs" :message="form.errors.password" />
+                    </div>
 
-            <div class="text-center">
-                <p class="text-sm text-gray-600">
-                    Don't have an account?
-                    <Link
-                        :href="route('register')"
-                        class="font-medium text-indigo-600 hover:text-indigo-500 transition duration-200"
+                    <!-- Remember Me and Forgot Password -->
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <Checkbox name="remember" v-model:checked="form.remember" />
+                            <span class="ml-2 text-sm text-gray-600">Remember me</span>
+                        </label>
+
+                        <Link
+                            v-if="canResetPassword"
+                            :href="route('password.request')"
+                            class="text-sm text-green-600 hover:text-green-700 transition duration-200"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
+
+                    <!-- Login Button -->
+                    <button
+                        type="submit"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-4 rounded-2xl transition duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg hover:shadow-xl mt-6"
+                        :class="{ 'opacity-75 cursor-not-allowed': form.processing }"
+                        :disabled="form.processing"
                     >
-                        Create an account
-                    </Link>
-                </p>
+                        <span v-if="form.processing" class="flex items-center justify-center">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Signing in...
+                        </span>
+                        <span v-else>Sign In</span>
+                    </button>
+
+                    <!-- Register Link -->
+                    <div class="text-center pt-4">
+                        <Link
+                            :href="route('register')"
+                            class="text-sm text-gray-600 hover:text-green-600 transition duration-200"
+                        >
+                            Don't have an account?
+                        </Link>
+                    </div>
+                </form>
             </div>
-        </form>
-    </GuestLayout>
+        </div>
+    </div>
 </template>
