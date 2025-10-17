@@ -3,63 +3,168 @@ import { Link, usePage } from '@inertiajs/vue3';
 
 const page = usePage();
 
+defineProps({
+    showMobileMenu: {
+        type: Boolean,
+        default: false
+    }
+});
+
+defineEmits(['closeMobileMenu']);
+
 const menuItems = [
     {
         name: 'Dashboard',
         icon: '🏠',
         href: route('faculty.dashboard'),
-        active: page.url === '/faculty-dashboard'
+        active: page.url === '/faculty-dashboard',
+        description: 'View faculty dashboard overview'
     },
     {
-        name: 'Student Management',
-        icon: '👥',
-        href: route('faculty.students.index'),
-        active: page.url === '/faculty/students'
-    },
-    {
-        name: 'Equipment Management',
-        icon: '/images/equipment.png',
-        href: route('faculty.equipment.index'),
-        active: page.url === '/faculty/equipment',
-        isImage: true
-    },
-    {
-        name: 'Issue Equipment',
-        icon: '🤲',
-        href: route('faculty.issue-equipment'),
-        active: page.url === '/faculty/issue-equipment'
-    },
-    {
-        name: 'Issued Equipment',
+        name: 'All Reservations',
         icon: '📋',
-        href: route('faculty.issued-equipment'),
-        active: page.url === '/faculty/issued-equipment'
+        href: route('faculty.reservations.index'),
+        active: page.url === '/faculty/reservations',
+        description: 'Manage all equipment reservations'
     },
     {
-        name: 'Requested Equipment',
-        icon: '🏷️',
-        href: route('faculty.requested-equipment'),
-        active: page.url === '/faculty/requested-equipment'
+        name: 'QR Scanner',
+        icon: '📱',
+        href: route('faculty.qr-scanner'),
+        active: page.url === '/faculty/qr-scanner',
+        description: 'Scan QR codes for reservations'
     }
 ];
 </script>
 
 <template>
-    <div class="w-64 bg-[#d6efd8] min-h-screen p-4">
-        <div class="space-y-2">
+    <!-- Desktop Sidebar -->
+    <div class="hidden md:flex w-64 bg-[#d6efd8] h-screen">
+        <!-- Menu Items -->
+        <div class="space-y-3 w-full p-4 overflow-y-auto">
             <div v-for="item in menuItems" :key="item.name" class="relative">
-                <!-- Menu Item -->
                 <Link
                     :href="item.href"
                     :class="[
-                        'flex items-center w-full px-4 py-3 text-sm font-bold rounded-lg transition-all duration-200 hover:bg-[#1a4a1a] border-l-4',
-                        item.active ? 'bg-[#1a4a1a] border-white text-white' : 'text-black border-transparent'
+                        'flex items-center w-full px-4 py-4 text-sm font-bold rounded-lg transition-all duration-200 hover:bg-[#1a4a1a] group',
+                        item.active ? 'bg-[#1a4a1a] border-l-4 border-white text-white' : 'text-black hover:text-white'
                     ]"
                 >
-                    <img v-if="item.isImage" :src="item.icon" :alt="item.name" class="w-5 h-5 mr-3" />
-                    <span v-else class="text-lg mr-3">{{ item.icon }}</span>
-                    <span>{{ item.name }}</span>
+                    <span class="text-xl mr-3 group-hover:scale-110 transition-transform duration-200 flex-shrink-0">{{ item.icon }}</span>
+                    <div class="flex-1 min-w-0">
+                        <span class="block truncate">{{ item.name }}</span>
+                        <span class="text-xs font-normal opacity-75 group-hover:opacity-100 transition-opacity duration-200 block truncate">
+                            {{ item.description }}
+                        </span>
+                    </div>
                 </Link>
+            </div>
+
+            <!-- Faculty Info Section -->
+            <div class="mt-8 p-4 bg-white rounded-lg border border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Faculty Tools</h3>
+                <div class="space-y-2 text-xs text-gray-600">
+                    <div class="flex items-center space-x-2">
+                        <span>✅</span>
+                        <span>Approve/Reject Requests</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span>📦</span>
+                        <span>Issue & Return Equipment</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span>📱</span>
+                        <span>QR Code Management</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Section -->
+            <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="text-blue-600">❓</span>
+                    <span class="text-sm font-medium text-blue-800">Need Help?</span>
+                </div>
+                <p class="text-xs text-blue-600">
+                    Contact IT support for technical assistance with the faculty portal.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div v-show="showMobileMenu" class="md:hidden fixed inset-0 z-40 flex">
+        <!-- Overlay backdrop -->
+        <div
+            class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            @click="$emit('closeMobileMenu')"
+        ></div>
+
+        <!-- Sidebar panel -->
+        <div class="relative flex flex-col w-80 max-w-[85vw] bg-[#d6efd8] min-h-screen p-4">
+            <!-- Close button -->
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-[#2F6C2F]">Faculty Menu</h2>
+                <button
+                    @click="$emit('closeMobileMenu')"
+                    class="p-2 rounded-md text-[#2F6C2F] hover:bg-[#c8e6ca] focus:outline-none focus:ring-2 focus:ring-[#2F6C2F]"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Menu Items -->
+            <div class="space-y-3 flex-1 overflow-y-auto">
+                <div v-for="item in menuItems" :key="item.name" class="relative">
+                    <Link
+                        :href="item.href"
+                        @click="$emit('closeMobileMenu')"
+                        :class="[
+                            'flex items-center w-full px-4 py-4 text-sm font-bold rounded-lg transition-all duration-200 hover:bg-[#1a4a1a] group',
+                            item.active ? 'bg-[#1a4a1a] border-l-4 border-white text-white' : 'text-black hover:text-white'
+                        ]"
+                    >
+                        <span class="text-xl mr-3 group-hover:scale-110 transition-transform duration-200 flex-shrink-0">{{ item.icon }}</span>
+                        <div class="flex-1 min-w-0">
+                            <span class="block">{{ item.name }}</span>
+                            <span class="text-xs font-normal opacity-75 group-hover:opacity-100 transition-opacity duration-200 block">
+                                {{ item.description }}
+                            </span>
+                        </div>
+                    </Link>
+                </div>
+
+                <!-- Faculty Info Section (Mobile) -->
+                <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Faculty Tools</h3>
+                    <div class="grid grid-cols-1 gap-2 text-xs text-gray-600">
+                        <div class="flex items-center space-x-2">
+                            <span>✅</span>
+                            <span>Approve/Reject Requests</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span>📦</span>
+                            <span>Issue & Return Equipment</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span>📱</span>
+                            <span>QR Code Management</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Section (Mobile) -->
+                <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-blue-600">❓</span>
+                        <span class="text-sm font-medium text-blue-800">Need Help?</span>
+                    </div>
+                    <p class="text-xs text-blue-600">
+                        Contact IT support for technical assistance with the faculty portal.
+                    </p>
+                </div>
             </div>
         </div>
     </div>

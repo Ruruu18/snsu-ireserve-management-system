@@ -15,7 +15,27 @@ class EquipmentController extends Controller
      */
     public function index()
     {
-        $equipment = Equipment::orderBy('created_at', 'desc')->get();
+        $equipment = Equipment::orderBy('created_at', 'desc')->get()->map(function ($item) {
+            $usageStats = $item->getUsageStats();
+            $currentReservations = $item->getCurrentReservations();
+
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'description' => $item->description,
+                'category' => $item->category,
+                'status' => $item->status,
+                'location' => $item->location,
+                'serial_number' => $item->serial_number,
+                'image' => $item->image,
+                'total_quantity' => $item->total_quantity,
+                'created_at' => $item->created_at,
+                'updated_at' => $item->updated_at,
+                // Usage statistics
+                'usage_stats' => $usageStats,
+                'current_reservations' => $currentReservations,
+            ];
+        });
 
         return Inertia::render('Admin/EquipmentList', [
             'equipment' => $equipment
@@ -45,8 +65,8 @@ class EquipmentController extends Controller
             'description' => 'nullable|string',
             'category' => 'required|string|max:255',
             'status' => 'required|in:available,unavailable,maintenance',
-            'location' => 'nullable|string|max:255',
             'serial_number' => 'nullable|string|max:255|unique:equipment',
+            'total_quantity' => 'required|integer|min:1',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -71,13 +91,13 @@ class EquipmentController extends Controller
             'description' => 'nullable|string',
             'category' => 'required|string|max:255',
             'status' => 'required|in:available,unavailable,maintenance',
-            'location' => 'nullable|string|max:255',
             'serial_number' => [
                 'nullable',
                 'string',
                 'max:255',
                 Rule::unique('equipment')->ignore($equipment->id),
             ],
+            'total_quantity' => 'required|integer|min:1',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 

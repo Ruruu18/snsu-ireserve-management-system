@@ -5,13 +5,18 @@ import Sidebar from '@/Components/Sidebar.vue';
 import Header from '@/Components/Header.vue';
 
 const showingNavigationDropdown = ref(false);
+const showMobileSidebar = ref(false);
+
+const closeMobileSidebar = () => {
+    showMobileSidebar.value = false;
+};
 </script>
 
 <template>
     <div>
         <div class="h-screen bg-gray-100 flex flex-col overflow-hidden">
             <!-- Top Navigation Bar -->
-            <Header />
+            <Header @openMobileMenu="showMobileSidebar = true" />
 
             <!-- Mobile Navigation Menu -->
             <div
@@ -58,13 +63,14 @@ const showingNavigationDropdown = ref(false);
 
             <!-- Main Layout with Sidebar -->
             <div class="flex flex-1 overflow-hidden">
-                <!-- Sidebar - Always Visible -->
-                <div class="w-64 bg-[#2F6C2F] h-full">
-                    <Sidebar />
-                </div>
+                <!-- Sidebar -->
+                <Sidebar
+                    :showMobileMenu="showMobileSidebar"
+                    @closeMobileMenu="closeMobileSidebar"
+                />
 
                 <!-- Main Content Area -->
-                <div class="flex-1 flex flex-col h-full overflow-hidden">
+                <div class="flex-1 flex flex-col h-full overflow-hidden md:ml-0">
                     <!-- Page Heading -->
                     <header
                         class="bg-white shadow flex-shrink-0"
@@ -76,7 +82,7 @@ const showingNavigationDropdown = ref(false);
                     </header>
 
                     <!-- Page Content -->
-                    <main class="flex-1 overflow-hidden">
+                    <main class="flex-1 overflow-auto">
                         <slot />
                     </main>
                 </div>

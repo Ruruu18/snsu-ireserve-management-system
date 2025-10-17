@@ -96,8 +96,8 @@ const quickActions = computed(() => [
         icon: '🔍',
         action: 'catalog',
         onClick: () => {
-            // Scroll to equipment catalog section
-            document.getElementById('equipment-catalog')?.scrollIntoView({ behavior: 'smooth' });
+            // Navigate to equipment catalog page
+            router.visit(route('student.equipment.catalog'));
         },
         color: 'bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800'
     },
@@ -120,8 +120,6 @@ const getStatusColor = (status) => {
             return 'bg-green-100 text-green-800 border-green-200';
         case 'pending':
             return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'rejected':
-            return 'bg-red-100 text-red-800 border-red-200';
         case 'completed':
             return 'bg-blue-100 text-blue-800 border-blue-200';
         case 'cancelled':
@@ -138,8 +136,6 @@ const getStatusIcon = (status) => {
             return '✅';
         case 'pending':
             return '⏳';
-        case 'rejected':
-            return '❌';
         case 'completed':
             return '🎉';
         case 'cancelled':
@@ -173,17 +169,17 @@ const reserveEquipment = (equipment) => {
 
     <StudentLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold leading-tight text-gray-900">
+                    <h2 class="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
                         Student Dashboard
                     </h2>
-                    <p class="text-gray-600 mt-1">Manage your equipment reservations and track your bookings.</p>
+                    <p class="text-gray-600 mt-1 text-sm sm:text-base">Manage your equipment reservations and track your bookings.</p>
                 </div>
                 <div class="flex space-x-3">
                     <button
                         @click="createNewReservation"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                        class="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 w-full sm:w-auto justify-center"
                     >
                         New Reservation
                     </button>
@@ -192,74 +188,74 @@ const reserveEquipment = (equipment) => {
         </template>
 
         <div class="h-full flex flex-col overflow-hidden">
-            <div class="px-6 lg:px-8 py-6 flex-1 overflow-y-auto">
+            <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 overflow-y-auto">
                 <!-- Stats Grid -->
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
                     <div class="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-200 hover:shadow-md transition duration-200">
-                        <div class="p-6 bg-gradient-to-br from-blue-600 to-blue-700">
+                        <div class="p-4 sm:p-6 bg-gradient-to-br from-blue-600 to-blue-700">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <span class="text-2xl text-white">📊</span>
+                                    <span class="text-xl sm:text-2xl text-white">📊</span>
                                 </div>
-                                <div class="ml-4 w-full">
-                                    <p class="text-sm font-medium text-blue-100 truncate">Total Reservations</p>
-                                    <p class="text-2xl font-bold text-white">{{ props.stats.total_reservations }}</p>
+                                <div class="ml-3 sm:ml-4 w-full min-w-0">
+                                    <p class="text-xs sm:text-sm font-medium text-blue-100 truncate">Total Reservations</p>
+                                    <p class="text-xl sm:text-2xl font-bold text-white">{{ props.stats.total_reservations }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-200 hover:shadow-md transition duration-200">
-                        <div class="p-6 bg-gradient-to-br from-yellow-600 to-yellow-700">
+                        <div class="p-4 sm:p-6 bg-gradient-to-br from-yellow-600 to-yellow-700">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <span class="text-2xl text-white">⏳</span>
+                                    <span class="text-xl sm:text-2xl text-white">⏳</span>
                                 </div>
-                                <div class="ml-4 w-full">
-                                    <p class="text-sm font-medium text-yellow-100 truncate">Pending</p>
-                                    <p class="text-2xl font-bold text-white">{{ props.stats.pending_reservations }}</p>
+                                <div class="ml-3 sm:ml-4 w-full min-w-0">
+                                    <p class="text-xs sm:text-sm font-medium text-yellow-100 truncate">Pending</p>
+                                    <p class="text-xl sm:text-2xl font-bold text-white">{{ props.stats.pending_reservations }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-200 hover:shadow-md transition duration-200">
-                        <div class="p-6 bg-gradient-to-br from-green-600 to-green-700">
+                        <div class="p-4 sm:p-6 bg-gradient-to-br from-green-600 to-green-700">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <span class="text-2xl text-white">✅</span>
+                                    <span class="text-xl sm:text-2xl text-white">✅</span>
                                 </div>
-                                <div class="ml-4 w-full">
-                                    <p class="text-sm font-medium text-green-100 truncate">Active</p>
-                                    <p class="text-2xl font-bold text-white">{{ props.stats.active_reservations }}</p>
+                                <div class="ml-3 sm:ml-4 w-full min-w-0">
+                                    <p class="text-xs sm:text-sm font-medium text-green-100 truncate">Active</p>
+                                    <p class="text-xl sm:text-2xl font-bold text-white">{{ props.stats.active_reservations }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-200 hover:shadow-md transition duration-200">
-                        <div class="p-6 bg-gradient-to-br from-purple-600 to-purple-700">
+                        <div class="p-4 sm:p-6 bg-gradient-to-br from-purple-600 to-purple-700">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <span class="text-2xl text-white">🎉</span>
+                                    <span class="text-xl sm:text-2xl text-white">🎉</span>
                                 </div>
-                                <div class="ml-4 w-full">
-                                    <p class="text-sm font-medium text-purple-100 truncate">Completed</p>
-                                    <p class="text-2xl font-bold text-white">{{ props.stats.completed_reservations }}</p>
+                                <div class="ml-3 sm:ml-4 w-full min-w-0">
+                                    <p class="text-xs sm:text-sm font-medium text-purple-100 truncate">Completed</p>
+                                    <p class="text-xl sm:text-2xl font-bold text-white">{{ props.stats.completed_reservations }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
                     <!-- Recent Reservations -->
                     <div class="lg:col-span-2">
-                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[400px] flex flex-col">
-                            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50">
-                                <h3 class="text-lg font-semibold text-slate-800">Recent Reservations</h3>
+                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[350px] sm:h-[400px] flex flex-col">
+                            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50">
+                                <h3 class="text-base sm:text-lg font-semibold text-slate-800">Recent Reservations</h3>
                             </div>
-                            <div class="p-6 flex-1 overflow-y-auto">
+                            <div class="p-4 sm:p-6 flex-1 overflow-y-auto">
                                 <div class="space-y-3">
                                     <div v-if="props.recentReservations.length > 0">
                                         <div
@@ -272,8 +268,8 @@ const reserveEquipment = (equipment) => {
                                                 <div class="flex items-center space-x-3">
                                                     <span class="text-lg">{{ getStatusIcon(reservation.status) }}</span>
                                                     <div>
-                                                        <h4 class="font-medium text-gray-900 group-hover:text-blue-700 text-sm transition-colors duration-200">{{ reservation.equipment_name }}</h4>
-                                                        <p class="text-xs text-gray-600">{{ reservation.date }} • {{ reservation.start_time }} - {{ reservation.end_time }}</p>
+                                                        <h4 class="font-medium text-gray-900 group-hover:text-blue-700 text-sm transition-colors duration-200 truncate">{{ reservation.equipment_name }}</h4>
+                                                        <p class="text-xs text-gray-600 truncate">{{ reservation.date }} • {{ reservation.start_time }} - {{ reservation.end_time }}</p>
                                                         <p v-if="reservation.purpose" class="text-xs text-gray-500 mt-1 truncate">{{ reservation.purpose }}</p>
                                                     </div>
                                                 </div>
@@ -317,11 +313,11 @@ const reserveEquipment = (equipment) => {
 
                     <!-- Quick Actions -->
                     <div>
-                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[400px] flex flex-col">
-                            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                                <h3 class="text-lg font-semibold text-slate-800">Quick Actions</h3>
+                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[350px] sm:h-[400px] flex flex-col">
+                            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                                <h3 class="text-base sm:text-lg font-semibold text-slate-800">Quick Actions</h3>
                             </div>
-                            <div class="p-6 flex-1 overflow-y-auto">
+                            <div class="p-4 sm:p-6 flex-1 overflow-y-auto">
                                 <div class="space-y-3">
                                     <button
                                         v-for="action in quickActions"
@@ -344,11 +340,11 @@ const reserveEquipment = (equipment) => {
 
                     <!-- Upcoming Reservations -->
                     <div>
-                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[400px] flex flex-col">
-                            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
-                                <h3 class="text-lg font-semibold text-slate-800">Upcoming</h3>
+                        <div class="bg-white border-gray-200 shadow-lg rounded-xl border hover:shadow-xl transition-all duration-300 h-[350px] sm:h-[400px] flex flex-col">
+                            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                                <h3 class="text-base sm:text-lg font-semibold text-slate-800">Upcoming</h3>
                             </div>
-                            <div class="p-6 flex-1 overflow-y-auto">
+                            <div class="p-4 sm:p-6 flex-1 overflow-y-auto">
                                 <div class="space-y-3">
                                     <div v-if="props.upcomingReservations.length > 0">
                                         <div
@@ -359,8 +355,8 @@ const reserveEquipment = (equipment) => {
                                             <div class="flex items-center space-x-3">
                                                 <span class="text-green-600 text-sm">📅</span>
                                                 <div class="flex-1">
-                                                    <h4 class="font-medium text-gray-900 text-xs truncate">{{ reservation.equipment.name }}</h4>
-                                                    <p class="text-xs text-gray-600">{{ reservation.reservation_date }}</p>
+                                                    <h4 class="font-medium text-gray-900 text-xs truncate">{{ reservation.equipment_name }}</h4>
+                                                    <p class="text-xs text-gray-600">{{ reservation.date }}</p>
                                                     <p class="text-xs text-gray-500">{{ reservation.start_time }}</p>
                                                 </div>
                                             </div>
@@ -390,7 +386,7 @@ const reserveEquipment = (equipment) => {
                                     <h4 class="text-md font-medium text-gray-900 mb-3 border-b border-gray-200 pb-2">
                                         {{ category.category }}
                                     </h4>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                                         <div
                                             v-for="equipment in category.equipment"
                                             :key="equipment.id"

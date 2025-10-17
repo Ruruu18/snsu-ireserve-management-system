@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Department;
+use App\Models\Notification;
 use App\Models\Reservation;
 use App\Models\Equipment;
 use Illuminate\Http\Request;
@@ -27,23 +28,25 @@ class AdminController extends Controller
         // Get requested equipment count (pending reservations)
         $requestedEquipment = Reservation::where('status', 'pending')->count();
 
-        // Get issued equipment count (approved reservations that haven't been returned)
-        $issuedEquipment = Reservation::where('status', 'approved')
-            ->whereNull('returned_at')
-            ->count();
+        // Get issued equipment count (currently issued equipment)
+        $issuedEquipment = Reservation::where('status', 'issued')->count();
 
-        // Get total members (students + faculty/staff + admins)
-        $totalMembers = User::count();
+        // Get return requests count (equipment requested for return)
+        $returnRequests = Reservation::where('status', 'return_requested')->count();
+
+        // Get total students only
+        $totalStudents = User::where('role', 'student')->count();
 
         // Get recent reservations for the dashboard
-        $recentReservations = Reservation::with(['user', 'equipment'])
+        $recentReservations = Reservation::with(['user', 'items.equipment'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
             ->map(function ($reservation) {
+                $firstItem = $reservation->items->first();
                 return [
                     'id' => $reservation->id,
-                    'name' => $reservation->equipment->name ?? 'Unknown Equipment',
+                    'name' => $firstItem ? $firstItem->equipment->name : 'Multiple items',
                     'user' => $reservation->user->name ?? 'Unknown User',
                     'date' => \Carbon\Carbon::parse($reservation->reservation_date)->format('M d, Y'),
                     'time' => \Carbon\Carbon::parse($reservation->start_time)->format('g:i A') . ' - ' . \Carbon\Carbon::parse($reservation->end_time)->format('g:i A'),
@@ -56,8 +59,35 @@ class AdminController extends Controller
                 'equipments' => $totalEquipment,
                 'requested_equipments' => $requestedEquipment,
                 'issued_equipments' => $issuedEquipment,
-                'members' => $totalMembers,
+                'return_requests' => $returnRequests,
+                'students' => $totalStudents,
             ],
+            'recent_reservations' => $recentReservations
+        ]);
+    }
+
+    /**
+     * Get recent reservations for real-time updates.
+     */
+    public function getRecentReservations()
+    {
+        $recentReservations = Reservation::with(['user', 'items.equipment'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($reservation) {
+                $firstItem = $reservation->items->first();
+                return [
+                    'id' => $reservation->id,
+                    'name' => $firstItem ? $firstItem->equipment->name : 'Multiple items',
+                    'user' => $reservation->user->name ?? 'Unknown User',
+                    'date' => \Carbon\Carbon::parse($reservation->reservation_date)->format('M d, Y'),
+                    'time' => \Carbon\Carbon::parse($reservation->start_time)->format('g:i A') . ' - ' . \Carbon\Carbon::parse($reservation->end_time)->format('g:i A'),
+                    'status' => $reservation->status,
+                ];
+            });
+
+        return response()->json([
             'recent_reservations' => $recentReservations
         ]);
     }
@@ -118,6 +148,12 @@ public function storeStudent(Request $request)
         // Send email verification notification
         $user->sendEmailVerificationNotification();
 
+        // Load department relationship for notification
+        $user->load('department');
+
+        // Create notification for student creation
+        Notification::createStudentCreation($user);
+
         return redirect()->back()->with('success', 'Student created successfully. Verification email sent.');
     }
 
@@ -172,64 +208,19 @@ public function storeStudent(Request $request)
     }
 
     /**
-     * Display the issue equipment page (pending reservations).
+     * Display all reservations for management.
      */
-    public function issueEquipment(): Response
+    public function reservations(): Response
     {
-        $pendingReservations = Reservation::with(['user', 'equipment'])
-            ->where('status', 'pending')
+        $reservations = Reservation::with(['user', 'items.equipment'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        // Transform to include computed properties and format times
-        $pendingReservations->getCollection()->transform(function ($reservation) {
-            $reservation->duration = $reservation->getDurationAttribute();
-            $reservation->formatted_start_time = \Carbon\Carbon::parse($reservation->start_time)->format('g:i A');
-            $reservation->formatted_end_time = \Carbon\Carbon::parse($reservation->end_time)->format('g:i A');
-            $reservation->formatted_date = $reservation->reservation_date->format('M d, Y');
-            return $reservation;
-        });
-
-        return Inertia::render('Admin/IssueEquipment', [
-            'reservations' => $pendingReservations
+        return Inertia::render('Admin/Reservations', [
+            'reservations' => $reservations,
         ]);
     }
 
-    /**
-     * Display the issued equipment page (approved/active reservations).
-     */
-    public function issuedEquipment(): Response
-    {
-        $issuedReservations = Reservation::with(['user', 'equipment'])
-            ->where('status', 'approved')
-            ->whereNull('returned_at')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return Inertia::render('Admin/IssuedEquipment', [
-            'reservations' => $issuedReservations
-        ]);
-    }
-
-    /**
-     * Display the requested equipment page (all reservations).
-     */
-    public function requestedEquipment(): Response
-    {
-        $allReservations = Reservation::with(['user', 'equipment'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        // Transform to include computed properties
-        $allReservations->getCollection()->transform(function ($reservation) {
-            $reservation->duration = $reservation->getDurationAttribute();
-            return $reservation;
-        });
-
-        return Inertia::render('Admin/RequestedEquipment', [
-            'reservations' => $allReservations
-        ]);
-    }
 
     /**
      * Approve a reservation request.
@@ -240,10 +231,15 @@ public function storeStudent(Request $request)
             return back()->withErrors(['status' => 'Only pending reservations can be approved.']);
         }
 
+        $oldStatus = $reservation->status;
+
         $reservation->update([
             'status' => 'approved',
             'approved_at' => now(),
+            'approved_by' => auth()->id(),
         ]);
+
+        // Broadcast status update
 
         return back()->with('success', 'Reservation approved successfully.');
     }
@@ -254,19 +250,23 @@ public function storeStudent(Request $request)
     public function rejectReservation(Request $request, Reservation $reservation)
     {
         if ($reservation->status !== 'pending') {
-            return back()->withErrors(['status' => 'Only pending reservations can be rejected.']);
+            return back()->withErrors(['status' => 'Only pending reservations can be cancelled.']);
         }
 
         $request->validate([
             'admin_notes' => 'nullable|string|max:500',
         ]);
 
+        $oldStatus = $reservation->status;
+
         $reservation->update([
-            'status' => 'rejected',
+            'status' => 'cancelled',
             'admin_notes' => $request->admin_notes,
         ]);
 
-        return back()->with('success', 'Reservation rejected successfully.');
+        // Broadcast status update
+
+        return back()->with('success', 'Reservation cancelled successfully.');
     }
 
     /**
@@ -274,19 +274,24 @@ public function storeStudent(Request $request)
      */
     public function returnEquipment(Request $request, Reservation $reservation)
     {
-        if ($reservation->status !== 'approved' || $reservation->returned_at) {
-            return back()->withErrors(['status' => 'Only approved, unreturned reservations can be marked as returned.']);
+        if (!in_array($reservation->status, ['issued', 'return_requested'])) {
+            return back()->withErrors(['status' => 'Only issued reservations can be marked as returned.']);
         }
 
         $request->validate([
             'admin_notes' => 'nullable|string|max:500',
         ]);
 
+        $oldStatus = $reservation->status;
+
         $reservation->update([
             'status' => 'completed',
             'returned_at' => now(),
+            'returned_by' => auth()->id(),
             'admin_notes' => $request->admin_notes,
         ]);
+
+        // Broadcast status update
 
         return back()->with('success', 'Equipment marked as returned successfully.');
     }

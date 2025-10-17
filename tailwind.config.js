@@ -15,6 +15,9 @@ export default {
             fontFamily: {
                 sans: ['Poppins', ...defaultTheme.fontFamily.sans],
             },
+            screens: {
+                'xs': '375px',  // Extra small devices (small phones)
+            },
         },
     },
 

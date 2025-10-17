@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Equipment;
 use App\Models\Reservation;
+use App\Models\ReservationItem;
 use App\Models\User;
+use App\Notifications\NewReservationReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -21,15 +23,20 @@ class ReservationController extends Controller
         $user = Auth::user();
 
         $reservations = $user->reservations()
-            ->with('equipment')
+            ->with('items.equipment')
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         $reservations->getCollection()->transform(function ($reservation) {
+            $firstItem = $reservation->items->first();
+            $totalItems = $reservation->items->sum('quantity');
+
             return [
                 'id' => $reservation->id,
-                'equipment_name' => $reservation->equipment->name,
-                'equipment_id' => $reservation->equipment_id,
+                'equipment_name' => $firstItem ? $firstItem->equipment->name : 'Multiple items',
+                'equipment_id' => $firstItem ? $firstItem->equipment->id : null,
+                'total_items' => $totalItems,
+                'items_count' => $reservation->items->count(),
                 'date' => $reservation->reservation_date->format('M d, Y'),
                 'start_time' => $reservation->start_time->format('H:i'),
                 'end_time' => $reservation->end_time->format('H:i'),
@@ -42,8 +49,17 @@ class ReservationController extends Controller
             ];
         });
 
+        // Get statistics for sidebar
+        $stats = [
+            'total_reservations' => $user->reservations()->count(),
+            'pending_reservations' => $user->reservations()->where('status', 'pending')->count(),
+            'active_reservations' => $user->reservations()->whereIn('status', ['approved', 'issued'])->count(),
+            'completed_reservations' => $user->reservations()->where('status', 'completed')->count(),
+        ];
+
         return Inertia::render('Student/Reservations', [
-            'reservations' => $reservations
+            'reservations' => $reservations,
+            'stats' => $stats
         ]);
     }
 
@@ -66,17 +82,18 @@ class ReservationController extends Controller
             return back()->withErrors(['equipment_id' => 'This equipment is not available for reservation.']);
         }
 
-        // Check for conflicting reservations
-        $conflictingReservation = Reservation::where('equipment_id', $validated['equipment_id'])
-            ->where('reservation_date', $validated['reservation_date'])
-            ->where('status', '!=', 'cancelled')
-            ->where('status', '!=', 'rejected')
-            ->where(function ($query) use ($validated) {
-                $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhere(function ($q) use ($validated) {
-                        $q->where('start_time', '<=', $validated['start_time'])
-                          ->where('end_time', '>=', $validated['end_time']);
+        // Check for conflicting reservations using the new cart system
+        $conflictingReservation = ReservationItem::where('equipment_id', $validated['equipment_id'])
+            ->whereHas('reservation', function ($query) use ($validated) {
+                $query->where('reservation_date', $validated['reservation_date'])
+                    ->where('status', '!=', 'cancelled')
+                    ->where(function ($q) use ($validated) {
+                        $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                          ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                          ->orWhere(function ($q2) use ($validated) {
+                              $q2->where('start_time', '<=', $validated['start_time'])
+                                 ->where('end_time', '>=', $validated['end_time']);
+                          });
                     });
             })
             ->exists();
@@ -85,16 +102,29 @@ class ReservationController extends Controller
             return back()->withErrors(['time' => 'This equipment is already reserved for the selected time slot.']);
         }
 
-        // Create the reservation
+        // Create the reservation using the new cart system
         $reservation = Reservation::create([
             'user_id' => Auth::id(),
-            'equipment_id' => $validated['equipment_id'],
             'reservation_date' => $validated['reservation_date'],
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
             'purpose' => $validated['purpose'],
             'status' => 'pending',
+            'reservation_code' => 'RES-' . strtoupper(substr(md5(uniqid()), 0, 8)),
         ]);
+
+        // Create the reservation item
+        ReservationItem::create([
+            'reservation_id' => $reservation->id,
+            'equipment_id' => $validated['equipment_id'],
+            'quantity' => 1,
+        ]);
+
+        // Send email notifications to all admins and faculty
+        $admins = User::whereIn('role', ['admin', 'faculty'])->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new NewReservationReceived($reservation));
+        }
 
         return back()->with('success', 'Reservation request submitted successfully! You will be notified once it is reviewed.');
     }
@@ -122,17 +152,21 @@ class ReservationController extends Controller
         ]);
 
         // Check for conflicting reservations (excluding current reservation)
-        $conflictingReservation = Reservation::where('equipment_id', $reservation->equipment_id)
-            ->where('id', '!=', $reservation->id)
-            ->where('reservation_date', $validated['reservation_date'])
-            ->where('status', '!=', 'cancelled')
-            ->where('status', '!=', 'rejected')
-            ->where(function ($query) use ($validated) {
-                $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhere(function ($q) use ($validated) {
-                        $q->where('start_time', '<=', $validated['start_time'])
-                          ->where('end_time', '>=', $validated['end_time']);
+        // Get the equipment IDs from this reservation's items
+        $equipmentIds = $reservation->items->pluck('equipment_id');
+
+        $conflictingReservation = ReservationItem::whereIn('equipment_id', $equipmentIds)
+            ->whereHas('reservation', function ($query) use ($validated, $reservation) {
+                $query->where('id', '!=', $reservation->id)
+                    ->where('reservation_date', $validated['reservation_date'])
+                    ->where('status', '!=', 'cancelled')
+                    ->where(function ($q) use ($validated) {
+                        $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                          ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                          ->orWhere(function ($q2) use ($validated) {
+                              $q2->where('start_time', '<=', $validated['start_time'])
+                                 ->where('end_time', '>=', $validated['end_time']);
+                          });
                     });
             })
             ->exists();
@@ -161,7 +195,11 @@ class ReservationController extends Controller
             return back()->withErrors(['status' => 'This reservation cannot be cancelled.']);
         }
 
+        $oldStatus = $reservation->status;
+
         $reservation->update(['status' => 'cancelled']);
+
+        // Broadcast status update for email notification
 
         return back()->with('success', 'Reservation cancelled successfully.');
     }
@@ -202,16 +240,17 @@ class ReservationController extends Controller
             'date' => 'required|date',
         ]);
 
-        $reservations = Reservation::where('equipment_id', $validated['equipment_id'])
-            ->where('reservation_date', $validated['date'])
-            ->where('status', '!=', 'cancelled')
-            ->where('status', '!=', 'rejected')
-            ->select('start_time', 'end_time')
+        $reservations = ReservationItem::where('equipment_id', $validated['equipment_id'])
+            ->whereHas('reservation', function ($query) use ($validated) {
+                $query->where('reservation_date', $validated['date'])
+                    ->where('status', '!=', 'cancelled');
+            })
+            ->with('reservation:id,start_time,end_time')
             ->get()
-            ->map(function ($reservation) {
+            ->map(function ($item) {
                 return [
-                    'start' => $reservation->start_time->format('H:i'),
-                    'end' => $reservation->end_time->format('H:i'),
+                    'start' => $item->reservation->start_time->format('H:i'),
+                    'end' => $item->reservation->end_time->format('H:i'),
                 ];
             });
 

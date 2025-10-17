@@ -71,26 +71,29 @@ defineProps({
 
                 <!-- Get Started Button -->
                 <div class="text-center">
+                    <!-- If user is logged in, show dashboard link -->
                     <Link
-                        v-if="canRegister && !$page.props.auth.user"
-                        :href="route('register')"
-                        class="inline-block bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-full font-semibold text-lg transition duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                    >
-                        Get started
-                    </Link>
-                    <Link
-                        v-else-if="$page.props.auth.user"
+                        v-if="$page.props.auth.user"
                         :href="$page.props.auth.user.role === 'admin' ? route('dashboard') : $page.props.auth.user.role === 'faculty_staff' ? route('faculty.dashboard') : route('student.dashboard')"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-full font-semibold text-lg transition duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                     >
                         Go to Dashboard
                     </Link>
+                    <!-- If user is not logged in, prioritize login -->
                     <Link
-                        v-else
+                        v-else-if="canLogin"
                         :href="route('login')"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-full font-semibold text-lg transition duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                     >
-                        Get started
+                        Get Started
+                    </Link>
+                    <!-- Fallback to register if login is not available -->
+                    <Link
+                        v-else-if="canRegister"
+                        :href="route('register')"
+                        class="inline-block bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-full font-semibold text-lg transition duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                    >
+                        Get Started
                     </Link>
                 </div>
 

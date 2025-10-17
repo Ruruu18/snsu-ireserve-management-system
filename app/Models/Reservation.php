@@ -5,31 +5,56 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Reservation extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'user_id',
-        'equipment_id',
+        'reservation_code',
+        'status',
+        'purpose',
         'reservation_date',
         'start_time',
         'end_time',
-        'status',
-        'purpose',
+        'notes',
         'admin_notes',
+        'qr_code_data',
+        'qr_code_path',
         'approved_at',
+        'approved_by',
+        'issued_at',
         'returned_at',
+        'return_requested_at',
+        'issued_by',
+        'returned_by',
     ];
 
     protected $casts = [
         'reservation_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
         'approved_at' => 'datetime',
+        'issued_at' => 'datetime',
         'returned_at' => 'datetime',
+        'return_requested_at' => 'datetime',
+        'qr_code_data' => 'array',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($reservation) {
+            if (!$reservation->reservation_code) {
+                $reservation->reservation_code = 'RES-' . strtoupper(Str::random(8));
+            }
+        });
+    }
 
     /**
      * Get the user that owns the reservation.
@@ -40,11 +65,27 @@ class Reservation extends Model
     }
 
     /**
-     * Get the equipment for this reservation.
+     * Get the reservation items (equipment) for this reservation.
      */
-    public function equipment(): BelongsTo
+    public function items(): HasMany
     {
-        return $this->belongsTo(Equipment::class);
+        return $this->hasMany(ReservationItem::class);
+    }
+
+    /**
+     * Get the admin who issued the equipment.
+     */
+    public function issuedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    /**
+     * Get the admin who processed the return.
+     */
+    public function returnedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'returned_by');
     }
 
     /**
@@ -90,11 +131,11 @@ class Reservation extends Model
     }
 
     /**
-     * Check if the reservation is active (approved and not returned).
+     * Check if the reservation is active (issued and not returned).
      */
     public function isActive()
     {
-        return $this->status === 'approved' && !$this->returned_at;
+        return $this->status === 'issued' && !$this->returned_at;
     }
 
     /**
@@ -103,6 +144,26 @@ class Reservation extends Model
     public function canBeCancelled()
     {
         return in_array($this->status, ['pending', 'approved']) &&
-               $this->reservation_date > now()->toDateString();
+               $this->reservation_date >= now()->toDateString();
+    }
+
+    /**
+     * Get the total quantity of items in this reservation.
+     */
+    public function getTotalQuantityAttribute()
+    {
+        return $this->items->sum('quantity');
+    }
+
+    /**
+     * Generate QR code data for this reservation.
+     */
+    public function generateQRData()
+    {
+        // Minimal data to fit in QR code - just reservation code and signature
+        return [
+            'code' => $this->reservation_code,
+            'sig' => substr(hash('sha256', $this->reservation_code . config('app.key')), 0, 16),
+        ];
     }
 }

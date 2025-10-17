@@ -136,14 +136,17 @@ watch(perPage, () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold leading-tight text-gray-900">
+                    <h2 class="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
                         Department Management
                     </h2>
-                    <p class="text-gray-600 mt-1">Manage academic departments and faculty information</p>
+                    <p class="text-gray-600 mt-1 text-sm sm:text-base">Manage academic departments and faculty information</p>
                 </div>
-                <PrimaryButton @click="openCreateModal">
+                <PrimaryButton
+                    @click="openCreateModal"
+                    class="w-full sm:w-auto justify-center"
+                >
                     Add New Department
                 </PrimaryButton>
             </div>

@@ -8,6 +8,9 @@ use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Student\CartController;
+use App\Http\Controllers\Admin\QRScannerController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -33,6 +36,10 @@ Route::get('/admin-dashboard/stats', [AdminController::class, 'getDashboardStats
     ->middleware(['auth', 'verified', 'admin.only'])
     ->name('dashboard.stats');
 
+Route::get('/admin/reservations/recent', [AdminController::class, 'getRecentReservations'])
+    ->middleware(['auth', 'verified', 'admin.only'])
+    ->name('admin.reservations.recent');
+
 Route::get('/faculty-dashboard/stats', [FacultyController::class, 'getDashboardStats'])
     ->middleware(['auth', 'verified', 'admin'])
     ->name('faculty.dashboard.stats');
@@ -46,6 +53,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/student/equipment', [StudentDashboardController::class, 'equipmentCatalog'])->name('student.equipment.catalog');
     Route::get('/student/issued-equipment', [StudentDashboardController::class, 'issuedEquipment'])->name('student.equipment.issued');
     Route::get('/student/requested-equipment', [StudentDashboardController::class, 'requestedEquipment'])->name('student.equipment.requested');
+    Route::post('/student/equipment/{reservation}/request-return', [StudentDashboardController::class, 'requestReturn'])->name('student.equipment.request-return');
+
+    // Cart routes
+    Route::get('/student/cart/checkout', [CartController::class, 'checkout'])->name('student.cart.checkout');
+    Route::post('/student/cart/process', [CartController::class, 'process'])->name('student.cart.process');
+
+    // Handle GET requests to cart process (redirect to checkout)
+    Route::get('/student/cart/process', function() {
+        return redirect()->route('student.cart.checkout');
+    });
+
+    // QR View route
+    Route::get('/student/reservation/{reservation}/qr', [CartController::class, 'viewQR'])->name('student.reservation.qr');
 });
 
 Route::middleware('auth')->group(function () {
@@ -53,14 +73,15 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Student reservation routes
+    // Student reservation routes (Legacy system - keeping cancel route for compatibility)
     Route::middleware('verified')->group(function () {
         Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
-        Route::get('/reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
-        Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
-        Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
         Route::patch('/reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
-        Route::post('/reservations/availability', [ReservationController::class, 'checkAvailability'])->name('reservations.availability');
+        // Note: Creation routes removed - use cart system instead
+        // Route::get('/reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
+        // Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
+        // Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
+        // Route::post('/reservations/availability', [ReservationController::class, 'checkAvailability'])->name('reservations.availability');
     });
 
     // Admin routes (accessible only by admin users)
@@ -100,47 +121,44 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/users/stats', [UserController::class, 'getStats'])->name('admin.users.stats');
 
         // Reservation Management routes
-        Route::get('/admin/issue-equipment', [AdminController::class, 'issueEquipment'])->name('admin.issue-equipment');
-        Route::get('/admin/issued-equipment', [AdminController::class, 'issuedEquipment'])->name('admin.issued-equipment');
-        Route::get('/admin/requested-equipment', [AdminController::class, 'requestedEquipment'])->name('admin.requested-equipment');
+        Route::get('/admin/reservations', [AdminController::class, 'reservations'])->name('admin.reservations.index');
         Route::patch('/admin/reservations/{reservation}/approve', [AdminController::class, 'approveReservation'])->name('admin.reservations.approve');
         Route::patch('/admin/reservations/{reservation}/reject', [AdminController::class, 'rejectReservation'])->name('admin.reservations.reject');
         Route::patch('/admin/reservations/{reservation}/return', [AdminController::class, 'returnEquipment'])->name('admin.reservations.return');
+
+        // QR Scanner routes
+        Route::get('/admin/qr-scanner', [QRScannerController::class, 'index'])->name('admin.qr-scanner');
+        Route::post('/admin/qr-scanner/scan', [QRScannerController::class, 'scan'])->name('admin.qr-scanner.scan');
+        Route::post('/admin/qr-scanner/upload', [QRScannerController::class, 'uploadQR'])->name('admin.qr-scanner.upload');
+        Route::post('/admin/qr-scanner/issue', [QRScannerController::class, 'issueEquipment'])->name('admin.qr-scanner.issue');
+        Route::post('/admin/qr-scanner/return', [QRScannerController::class, 'returnEquipment'])->name('admin.qr-scanner.return');
+
+        // Notification routes
+        Route::get('/admin/notifications', [NotificationController::class, 'index'])->name('admin.notifications.index');
+        Route::patch('/admin/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('admin.notifications.read');
+        Route::patch('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('admin.notifications.read-all');
+        Route::get('/admin/notifications/unread-count', [NotificationController::class, 'getUnreadCount'])->name('admin.notifications.unread-count');
     });
 
-    // Faculty routes (accessible by both admin and faculty users)
+    // Shared notification routes (accessible to all authenticated users)
+    Route::post('/admin/notifications/cart-addition', [NotificationController::class, 'createCartNotification'])->name('admin.notifications.cart');
+
+    // Faculty routes (reservation management only)
     Route::middleware('admin')->group(function () {
-        Route::get('/faculty/students', [FacultyController::class, 'students'])->name('faculty.students.index');
-        Route::get('/faculty/students/create', [FacultyController::class, 'createStudent'])->name('faculty.students.create');
-        Route::post('/faculty/students', [FacultyController::class, 'storeStudent'])->name('faculty.students.store');
-        Route::put('/faculty/students/{student}', [FacultyController::class, 'updateStudent'])->name('faculty.students.update');
-        Route::delete('/faculty/students/{student}', [FacultyController::class, 'destroyStudent'])->name('faculty.students.destroy');
-        Route::get('/faculty/students/data', [FacultyController::class, 'getStudents'])->name('faculty.students.data');
-
-        // Faculty Department routes
-        Route::get('/faculty/departments', [DepartmentController::class, 'index'])->name('faculty.departments.index');
-        Route::get('/faculty/departments/create', [DepartmentController::class, 'create'])->name('faculty.departments.create');
-        Route::post('/faculty/departments', [DepartmentController::class, 'store'])->name('faculty.departments.store');
-        Route::put('/faculty/departments/{department}', [DepartmentController::class, 'update'])->name('faculty.departments.update');
-        Route::delete('/faculty/departments/{department}', [DepartmentController::class, 'destroy'])->name('faculty.departments.destroy');
-        Route::get('/faculty/departments/active', [DepartmentController::class, 'getActiveDepartments'])->name('faculty.departments.active');
-
-        // Faculty Equipment routes
-        Route::get('/faculty/equipment', [FacultyController::class, 'equipmentIndex'])->name('faculty.equipment.index');
-        Route::get('/faculty/equipment/create', [FacultyController::class, 'equipmentCreate'])->name('faculty.equipment.create');
-        Route::post('/faculty/equipment', [FacultyController::class, 'equipmentStore'])->name('faculty.equipment.store');
-        Route::post('/faculty/equipment/{equipment}', [FacultyController::class, 'equipmentUpdate'])->name('faculty.equipment.update');
-        Route::delete('/faculty/equipment/{equipment}', [FacultyController::class, 'equipmentDestroy'])->name('faculty.equipment.destroy');
-        Route::get('/faculty/equipment/data', [FacultyController::class, 'getEquipment'])->name('faculty.equipment.data');
-        Route::get('/faculty/equipment/category/{category?}', [FacultyController::class, 'getEquipmentByCategory'])->name('faculty.equipment.category');
-
         // Faculty Reservation Management routes
+        Route::get('/faculty/reservations', [FacultyController::class, 'reservationsIndex'])->name('faculty.reservations.index');
         Route::get('/faculty/issue-equipment', [FacultyController::class, 'issueEquipment'])->name('faculty.issue-equipment');
         Route::get('/faculty/issued-equipment', [FacultyController::class, 'issuedEquipment'])->name('faculty.issued-equipment');
         Route::get('/faculty/requested-equipment', [FacultyController::class, 'requestedEquipment'])->name('faculty.requested-equipment');
-        Route::patch('/faculty/reservations/{reservation}/approve', [FacultyController::class, 'approveReservation'])->name('faculty.reservations.approve');
-        Route::patch('/faculty/reservations/{reservation}/reject', [FacultyController::class, 'rejectReservation'])->name('faculty.reservations.reject');
+        Route::post('/faculty/reservations/{reservation}/approve', [FacultyController::class, 'approveReservation'])->name('faculty.reservations.approve');
+        Route::post('/faculty/reservations/{reservation}/reject', [FacultyController::class, 'rejectReservation'])->name('faculty.reservations.reject');
+        Route::post('/faculty/reservations/{reservation}/issue', [FacultyController::class, 'issueReservation'])->name('faculty.reservations.issue');
         Route::patch('/faculty/reservations/{reservation}/return', [FacultyController::class, 'returnEquipment'])->name('faculty.reservations.return');
+
+        // Faculty QR Scanner (for reservation management)
+        Route::get('/faculty/qr-scanner', [FacultyController::class, 'qrScanner'])->name('faculty.qr-scanner');
+        Route::post('/faculty/qr-scanner/scan', [FacultyController::class, 'qrScan'])->name('faculty.qr-scanner.scan');
+        Route::post('/faculty/qr-scanner/upload', [FacultyController::class, 'qrUpload'])->name('faculty.qr-scanner.upload');
     });
 });
 

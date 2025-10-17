@@ -18,7 +18,7 @@ return new class extends Migration
             $table->date('reservation_date');
             $table->time('start_time');
             $table->time('end_time');
-            $table->string('status')->default('pending'); // pending, approved, rejected, completed, cancelled
+            $table->string('status')->default('pending'); // pending, approved, issued, completed, cancelled
             $table->text('purpose')->nullable();
             $table->text('admin_notes')->nullable();
             $table->timestamp('approved_at')->nullable();

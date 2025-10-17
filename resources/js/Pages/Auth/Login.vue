@@ -30,39 +30,39 @@ const submit = () => {
     <Head title="Login" />
 
     <!-- Full Screen Background with Backdrop -->
-    <div class="min-h-screen relative flex items-center justify-center"
+    <div class="min-h-screen relative flex items-center justify-center px-4 sm:px-6 lg:px-8"
          style="background-image: url('/images/Backdrop.png'); background-size: cover; background-position: center; background-repeat: no-repeat;">
 
         <!-- Overlay for better contrast -->
         <div class="absolute inset-0 bg-black bg-opacity-20"></div>
 
         <!-- Main Content Container -->
-        <div class="relative z-10 w-full max-w-md mx-4">
+        <div class="relative z-10 w-full max-w-sm sm:max-w-md">
             <!-- Logo Section - Above white container -->
-            <div class="text-center -mb-20">
-                <img src="/images/LT.png" alt="SNSU Logo" class="mx-auto h-96 w-auto">
+            <div class="text-center -mb-12 sm:-mb-16 lg:-mb-20">
+                <img src="/images/LT.png" alt="SNSU Logo" class="mx-auto h-48 sm:h-64 lg:h-96 w-auto">
             </div>
 
             <!-- Login Form Card -->
-            <div class="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
+            <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 border border-gray-100">
 
                 <div v-if="status" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p class="text-sm font-medium text-green-600">{{ status }}</p>
                 </div>
 
                 <!-- Login Form -->
-                <form @submit.prevent="submit" class="space-y-4">
+                <form @submit.prevent="submit" class="space-y-4 sm:space-y-5">
                     <!-- Email Field -->
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
                             </svg>
                         </div>
                         <TextInput
                             id="email"
                             type="email"
-                            class="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
+                            class="block w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
                             v-model="form.email"
                             required
                             autofocus
@@ -74,15 +74,15 @@ const submit = () => {
 
                     <!-- Password Field -->
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                             </svg>
                         </div>
                         <TextInput
                             id="password"
                             type="password"
-                            class="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
+                            class="block w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-sm bg-gray-50 focus:bg-white"
                             v-model="form.password"
                             required
                             autocomplete="current-password"

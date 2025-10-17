@@ -33,8 +33,8 @@ const addForm = useForm({
     description: '',
     category: '',
     status: 'available',
-    location: '',
     serial_number: '',
+    total_quantity: 1,
     image: null,
 });
 
@@ -43,8 +43,8 @@ const editForm = useForm({
     description: '',
     category: '',
     status: '',
-    location: '',
     serial_number: '',
+    total_quantity: 1,
     image: null,
 });
 
@@ -80,8 +80,8 @@ const openEditModal = (equipment) => {
     editForm.description = equipment.description || '';
     editForm.category = equipment.category;
     editForm.status = equipment.status;
-    editForm.location = equipment.location || '';
     editForm.serial_number = equipment.serial_number || '';
+    editForm.total_quantity = equipment.total_quantity || 1;
     editForm.image = null;
     showEditModal.value = true;
 };
@@ -138,6 +138,20 @@ const getStatusColor = (status) => {
 const getImageUrl = (imagePath) => {
     return imagePath ? `/storage/${imagePath}` : '/images/equipment.png';
 };
+
+const getUsageColor = (usagePercentage) => {
+    if (usagePercentage >= 100) return 'bg-red-500';
+    if (usagePercentage >= 80) return 'bg-yellow-500';
+    if (usagePercentage >= 50) return 'bg-blue-500';
+    return 'bg-green-500';
+};
+
+const getUsageStatus = (usageStats) => {
+    if (usageStats.is_fully_utilized) return { text: 'Fully Used', color: 'text-red-600 bg-red-100' };
+    if (usageStats.usage_percentage >= 80) return { text: 'High Usage', color: 'text-yellow-600 bg-yellow-100' };
+    if (usageStats.usage_percentage >= 50) return { text: 'Moderate Usage', color: 'text-blue-600 bg-blue-100' };
+    return { text: 'Available', color: 'text-green-600 bg-green-100' };
+};
 </script>
 
 <template>
@@ -145,14 +159,17 @@ const getImageUrl = (imagePath) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold leading-tight text-gray-900">
+                    <h2 class="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
                         Equipment Management
                     </h2>
-                    <p class="text-gray-600 mt-1">Manage science lab equipment inventory</p>
+                    <p class="text-gray-600 mt-1 text-sm sm:text-base">Manage science lab equipment inventory</p>
                 </div>
-                <PrimaryButton @click="openAddModal">
+                <PrimaryButton
+                    @click="openAddModal"
+                    class="w-full sm:w-auto justify-center"
+                >
                     <span class="mr-2">➕</span>
                     Add Equipment
                 </PrimaryButton>
@@ -236,10 +253,58 @@ const getImageUrl = (imagePath) => {
                             <p class="text-sm text-gray-600 mb-2">{{ equipment.category }}</p>
                             <p class="text-sm text-gray-500 mb-3 line-clamp-2">{{ equipment.description || 'No description' }}</p>
 
-                            <div class="flex flex-col gap-2 text-xs text-gray-500">
-                                <div v-if="equipment.location">
-                                    <span class="font-medium">Location:</span> {{ equipment.location }}
+                            <!-- Usage Statistics -->
+                            <div v-if="equipment.usage_stats" class="mb-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium text-gray-700">Quantity Status</span>
+                                    <span :class="['px-2 py-1 rounded-full text-xs font-medium', getUsageStatus(equipment.usage_stats).color]">
+                                        {{ getUsageStatus(equipment.usage_stats).text }}
+                                    </span>
                                 </div>
+
+                                <!-- Usage Progress Bar -->
+                                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                    <div
+                                        :class="['h-2 rounded-full transition-all duration-300', getUsageColor(equipment.usage_stats.usage_percentage)]"
+                                        :style="{ width: equipment.usage_stats.usage_percentage + '%' }"
+                                    ></div>
+                                </div>
+
+                                <!-- Quantity Details -->
+                                <div class="grid grid-cols-3 gap-1 text-xs">
+                                    <div class="text-center">
+                                        <div class="font-medium text-gray-900">{{ equipment.usage_stats.total_quantity }}</div>
+                                        <div class="text-gray-500">Total</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="font-medium text-red-600">{{ equipment.usage_stats.currently_issued }}</div>
+                                        <div class="text-gray-500">In Use</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="font-medium text-green-600">{{ equipment.usage_stats.available }}</div>
+                                        <div class="text-gray-500">Available</div>
+                                    </div>
+                                </div>
+
+                                <!-- Current Users -->
+                                <div v-if="equipment.current_reservations && equipment.current_reservations.length > 0" class="mt-2 p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
+                                    <div class="text-xs font-medium text-yellow-800 mb-1">Currently Used By:</div>
+                                    <div class="space-y-1">
+                                        <div
+                                            v-for="reservation in equipment.current_reservations.slice(0, 2)"
+                                            :key="reservation.id"
+                                            class="text-xs text-yellow-700"
+                                        >
+                                            {{ reservation.student_name }} ({{ reservation.quantity }}x)
+                                        </div>
+                                        <div v-if="equipment.current_reservations.length > 2" class="text-xs text-yellow-600">
+                                            +{{ equipment.current_reservations.length - 2 }} more...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2 text-xs text-gray-500 mb-3">
                                 <div v-if="equipment.serial_number">
                                     <span class="font-medium">Serial:</span> {{ equipment.serial_number }}
                                 </div>
@@ -319,15 +384,16 @@ const getImageUrl = (imagePath) => {
                         </div>
 
                         <div>
-                            <InputLabel for="add_location" value="Location" />
+                            <InputLabel for="add_quantity" value="Total Quantity" />
                             <TextInput
-                                id="add_location"
-                                v-model="addForm.location"
-                                type="text"
+                                id="add_quantity"
+                                v-model="addForm.total_quantity"
+                                type="number"
+                                min="1"
                                 class="mt-1 block w-full"
-                                placeholder="e.g., Lab Room 101"
+                                required
                             />
-                            <InputError :message="addForm.errors.location" class="mt-2" />
+                            <InputError :message="addForm.errors.total_quantity" class="mt-2" />
                         </div>
 
                         <div class="md:col-span-2">
@@ -424,14 +490,16 @@ const getImageUrl = (imagePath) => {
                         </div>
 
                         <div>
-                            <InputLabel for="edit_location" value="Location" />
+                            <InputLabel for="edit_quantity" value="Total Quantity" />
                             <TextInput
-                                id="edit_location"
-                                v-model="editForm.location"
-                                type="text"
+                                id="edit_quantity"
+                                v-model="editForm.total_quantity"
+                                type="number"
+                                min="1"
                                 class="mt-1 block w-full"
+                                required
                             />
-                            <InputError :message="editForm.errors.location" class="mt-2" />
+                            <InputError :message="editForm.errors.total_quantity" class="mt-2" />
                         </div>
 
                         <div class="md:col-span-2">

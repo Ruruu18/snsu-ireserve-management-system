@@ -23,8 +23,8 @@ const getStatusColor = (status) => {
             return 'bg-green-100 text-green-800 border-green-200';
         case 'pending':
             return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'rejected':
-            return 'bg-red-100 text-red-800 border-red-200';
+        case 'issued':
+            return 'bg-purple-100 text-purple-800 border-purple-200';
         case 'completed':
             return 'bg-blue-100 text-blue-800 border-blue-200';
         case 'cancelled':
@@ -41,8 +41,8 @@ const getStatusIcon = (status) => {
             return '✅';
         case 'pending':
             return '⏳';
-        case 'rejected':
-            return '❌';
+        case 'issued':
+            return '📦';
         case 'completed':
             return '🎉';
         case 'cancelled':
@@ -86,9 +86,9 @@ const groupedReservations = computed(() => {
     const groups = {
         pending: [],
         approved: [],
+        issued: [],
         completed: [],
-        cancelled: [],
-        rejected: []
+        cancelled: []
     };
 
     props.reservations.data.forEach(reservation => {
@@ -104,9 +104,9 @@ const statusTabs = [
     { key: 'all', label: 'All Reservations', count: props.reservations.data.length },
     { key: 'pending', label: 'Pending', count: groupedReservations.value.pending.length },
     { key: 'approved', label: 'Approved', count: groupedReservations.value.approved.length },
+    { key: 'issued', label: 'Issued', count: groupedReservations.value.issued.length },
     { key: 'completed', label: 'Completed', count: groupedReservations.value.completed.length },
     { key: 'cancelled', label: 'Cancelled', count: groupedReservations.value.cancelled.length },
-    { key: 'rejected', label: 'Rejected', count: groupedReservations.value.rejected.length },
 ];
 
 const activeTab = ref('all');
@@ -124,23 +124,23 @@ const filteredReservations = computed(() => {
 
     <StudentLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold leading-tight text-gray-900">
+                    <h2 class="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
                         My Reservations
                     </h2>
-                    <p class="text-gray-600 mt-1">View and manage all your equipment reservations.</p>
+                    <p class="text-gray-600 mt-1 text-sm sm:text-base">View and manage all your equipment reservations.</p>
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                     <Link
                         :href="route('student.dashboard')"
-                        class="inline-flex items-center px-4 py-2 bg-gray-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 focus:bg-gray-600 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                        class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 focus:bg-gray-600 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150 w-full sm:w-auto justify-center"
                     >
                         Back to Dashboard
                     </Link>
                     <button
                         @click="createNewReservation"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                        class="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 w-full sm:w-auto justify-center"
                     >
                         New Reservation
                     </button>
@@ -148,7 +148,7 @@ const filteredReservations = computed(() => {
             </div>
         </template>
 
-        <div class="py-6">
+        <div class="py-4 sm:py-6 pb-8 sm:pb-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Status Filter Tabs -->
                 <div class="border-b border-gray-200 mb-6">
@@ -192,12 +192,12 @@ const filteredReservations = computed(() => {
                                     <div class="flex items-center space-x-3">
                                         <span class="text-2xl">{{ getStatusIcon(reservation.status) }}</span>
                                         <div>
-                                            <h3 class="text-lg font-semibold text-gray-900">{{ reservation.equipment_name }}</h3>
+                                            <h3 class="text-lg font-semibold text-gray-900">{{ reservation.equipment_name || 'Multiple Items' }}</h3>
                                             <p class="text-sm text-gray-600">
-                                                {{ reservation.date }} • {{ reservation.start_time }} - {{ reservation.end_time }}
+                                                {{ reservation.date || 'N/A' }} • {{ reservation.start_time || 'N/A' }} - {{ reservation.end_time || 'N/A' }}
                                             </p>
                                             <p class="text-sm text-gray-500 mt-1">
-                                                <strong>Purpose:</strong> {{ reservation.purpose }}
+                                                <strong>Purpose:</strong> {{ reservation.purpose || 'N/A' }}
                                             </p>
                                             <p v-if="reservation.admin_notes" class="text-sm text-gray-500 mt-1">
                                                 <strong>Admin Notes:</strong> {{ reservation.admin_notes }}

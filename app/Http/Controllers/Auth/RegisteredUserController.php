@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,9 @@ class RegisteredUserController extends Controller
         ]);
 
         event(new Registered($user));
+
+        // Create notification for admin about new user registration
+        Notification::createUserRegistration($user);
 
         // Don't log the user in automatically - redirect to login with verification message
         return redirect()->route('login')->with('status', 'Registration successful! Please check your email for a verification link before logging in.');

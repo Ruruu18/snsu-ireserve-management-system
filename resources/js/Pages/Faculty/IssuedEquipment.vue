@@ -7,6 +7,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { useFormatters } from '@/composables/useFormatters';
 
 const props = defineProps({
     reservations: {
@@ -14,6 +15,9 @@ const props = defineProps({
         required: true
     }
 });
+
+// Use formatters
+const { formatStatus } = useFormatters();
 
 // Modal states
 const showReturnModal = ref(false);
@@ -31,8 +35,6 @@ const getStatusColor = (status) => {
             return 'bg-green-100 text-green-800 border-green-200';
         case 'pending':
             return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'rejected':
-            return 'bg-red-100 text-red-800 border-red-200';
         case 'completed':
             return 'bg-blue-100 text-blue-800 border-blue-200';
         case 'cancelled':
@@ -48,8 +50,6 @@ const getStatusIcon = (status) => {
             return '✅';
         case 'pending':
             return '⏳';
-        case 'rejected':
-            return '❌';
         case 'completed':
             return '🎉';
         case 'cancelled':
@@ -194,9 +194,9 @@ const getDaysIssued = (approvedAt) => {
                                     <!-- Status Badge -->
                                     <span
                                         :class="getStatusColor(reservation.status)"
-                                        class="px-3 py-1 rounded-full text-sm font-medium capitalize border"
+                                        class="px-3 py-1 rounded-full text-sm font-medium border"
                                     >
-                                        {{ reservation.status }}
+                                        {{ formatStatus(reservation.status) }}
                                     </span>
 
                                     <!-- Action Buttons -->

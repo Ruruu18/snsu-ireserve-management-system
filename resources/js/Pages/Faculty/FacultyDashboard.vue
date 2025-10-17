@@ -1,60 +1,21 @@
 <script setup>
 import FacultyLayout from '@/Layouts/FacultyLayout.vue';
-import { Head, router, usePage, useForm } from '@inertiajs/vue3';
+import { Head, router, Link } from '@inertiajs/vue3';
 import { computed, ref, onMounted } from 'vue';
 import axios from 'axios';
-import Modal from '@/Components/Modal.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import SecondaryButton from '@/Components/SecondaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import InputError from '@/Components/InputError.vue';
-
-const page = usePage();
 
 // Reactive data for dashboard stats
 const stats = ref([
     { name: 'Equipments', value: '0', icon: '📅', change: '', trend: 'up', color: 'bg-gradient-to-br from-blue-600 to-blue-700 border-blue-800' },
     { name: 'Requested Equipments', value: '0', icon: '✅', change: '', trend: 'up', color: 'bg-gradient-to-br from-amber-600 to-amber-700 border-amber-800' },
     { name: 'Issued Equipments', value: '0', icon: '🎉', change: '', trend: 'up', color: 'bg-gradient-to-br from-emerald-600 to-emerald-700 border-emerald-800' },
-    { name: 'Members', value: '0', icon: '📊', change: '', trend: 'up', color: 'bg-gradient-to-br from-slate-600 to-slate-700 border-slate-800' },
+    { name: 'Students', value: '0', icon: '📊', change: '', trend: 'up', color: 'bg-gradient-to-br from-slate-600 to-slate-700 border-slate-800' },
 ]);
 
 const recentReservations = ref([]);
 const loading = ref(true);
 
-// Modal states
-const showStudentModal = ref(false);
-const showDepartmentModal = ref(false);
-const showEquipmentModal = ref(false);
-
-// Department data for forms
-const departments = ref([]);
-
-// Forms for quick actions
-const studentForm = useForm({
-    name: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-    department_id: '',
-});
-
-const departmentForm = useForm({
-    name: '',
-    code: '',
-    description: '',
-});
-
-const equipmentForm = useForm({
-    name: '',
-    description: '',
-    category: '',
-    status: 'available',
-    location: '',
-    serial_number: '',
-    image: null,
-});
+// No modal states needed for faculty - only reservation management
 
 // Fetch dashboard data from API
 const fetchDashboardData = async () => {
@@ -67,7 +28,7 @@ const fetchDashboardData = async () => {
         stats.value[0].value = data.stats.equipments.toString();
         stats.value[1].value = data.stats.requested_equipments.toString();
         stats.value[2].value = data.stats.issued_equipments.toString();
-        stats.value[3].value = data.stats.members.toString();
+        stats.value[3].value = data.stats.students.toString();
 
         // Update recent reservations
         recentReservations.value = data.recent_reservations;
@@ -78,35 +39,29 @@ const fetchDashboardData = async () => {
     }
 };
 
-// Fetch departments for forms
-const fetchDepartments = async () => {
-    try {
-        const response = await axios.get('/faculty/departments/active');
-        departments.value = response.data;
-    } catch (error) {
-        console.error('Error fetching departments:', error);
-    }
-};
-
 // Fetch data when component mounts
 onMounted(() => {
     fetchDashboardData();
-    fetchDepartments();
+
+    // Refresh data every 30 seconds for real-time updates
+    setInterval(fetchDashboardData, 30000);
 });
 
-// Faculty Quick actions for this dashboard
+// Faculty Quick actions for this dashboard - essential tools only
 const quickActions = computed(() => [
-    { name: 'Add Student', description: 'Create new student account', icon: '👤', route: 'faculty.students.create' },
-    { name: 'Add Department', description: 'Create new department', icon: '🏢', route: 'faculty.departments.create' },
-    { name: 'Add Equipment', description: 'Add new equipment to inventory', icon: '/images/equipment.png', route: 'faculty.equipment.create', isImage: true },
+    { name: 'QR Scanner', description: 'Scan QR codes for quick processing', icon: '📱', route: 'faculty.qr-scanner' },
 ]);
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'confirmed':
+        case 'approved':
             return 'bg-green-100 text-green-800';
+        case 'issued':
+            return 'bg-blue-100 text-blue-800';
         case 'pending':
             return 'bg-yellow-100 text-yellow-800';
+        case 'completed':
+            return 'bg-gray-100 text-gray-800';
         case 'cancelled':
             return 'bg-red-100 text-red-800';
         default:
@@ -115,91 +70,16 @@ const getStatusColor = (status) => {
 };
 
 const handleQuickAction = (action) => {
-    // Handle quick actions by opening modals
-    switch (action.route) {
-        case 'faculty.students.create':
-            openStudentModal();
-            break;
-        case 'faculty.departments.create':
-            openDepartmentModal();
-            break;
-        case 'faculty.equipment.create':
-            openEquipmentModal();
-            break;
-        default:
-            // Fallback to routing for any other actions
-            if (action.route) {
-                router.visit(route(action.route));
-            }
-            break;
+    // Handle quick actions for faculty reservation management
+    if (action.route) {
+        router.visit(route(action.route));
     }
 };
 
-// Modal handlers
-const openStudentModal = () => {
-    studentForm.reset();
-    showStudentModal.value = true;
-};
-
-const openDepartmentModal = () => {
-    departmentForm.reset();
-    showDepartmentModal.value = true;
-};
-
-const openEquipmentModal = () => {
-    equipmentForm.reset();
-    showEquipmentModal.value = true;
-};
-
-const closeModals = () => {
-    showStudentModal.value = false;
-    showDepartmentModal.value = false;
-    showEquipmentModal.value = false;
-};
-
-// Form submission handlers
-const submitStudentForm = () => {
-    studentForm.post(route('faculty.students.store'), {
-        onSuccess: () => {
-            closeModals();
-            studentForm.reset();
-            fetchDashboardData(); // Refresh stats
-        },
-    });
-};
-
-const submitDepartmentForm = () => {
-    departmentForm.post(route('faculty.departments.store'), {
-        onSuccess: () => {
-            closeModals();
-            departmentForm.reset();
-            fetchDepartments(); // Refresh departments list
-        },
-    });
-};
-
-const submitEquipmentForm = () => {
-    equipmentForm.post(route('faculty.equipment.store'), {
-        onSuccess: () => {
-            closeModals();
-            equipmentForm.reset();
-            fetchDashboardData(); // Refresh stats
-        },
-    });
-};
-
-// Image upload handler for equipment
-const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        equipmentForm.image = file;
-    }
-};
-
-// Navigate to faculty issue equipment page when clicking on a reservation
+// Navigate to faculty reservations page when clicking on a reservation
 const viewReservationDetails = (reservation) => {
-    // Navigate to faculty issue equipment page where this reservation can be managed
-    router.visit(route('faculty.issue-equipment'));
+    // Navigate to faculty reservations page where this reservation can be managed
+    router.visit(route('faculty.reservations.index'));
 };
 </script>
 
@@ -294,9 +174,9 @@ const viewReservationDetails = (reservation) => {
                                     </div>
                                 </div>
                                 <div class="mt-6 text-center">
-                                    <button class="text-slate-600 hover:text-slate-800 font-medium transition duration-200 hover:underline">
+                                    <Link :href="route('faculty.reservations.index')" class="text-slate-600 hover:text-slate-800 font-medium transition duration-200 hover:underline">
                                         View All Reservations
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -333,252 +213,5 @@ const viewReservationDetails = (reservation) => {
             </div>
         </div>
 
-        <!-- Add Student Modal -->
-        <Modal :show="showStudentModal" @close="closeModals">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Add New Student</h2>
-                <form @submit.prevent="submitStudentForm">
-                    <div class="space-y-4">
-                        <div>
-                            <InputLabel for="name" value="Name" />
-                            <TextInput
-                                id="name"
-                                v-model="studentForm.name"
-                                type="text"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="studentForm.errors.name" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="email" value="Email" />
-                            <TextInput
-                                id="email"
-                                v-model="studentForm.email"
-                                type="email"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="studentForm.errors.email" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="password" value="Password" />
-                            <TextInput
-                                id="password"
-                                v-model="studentForm.password"
-                                type="password"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="studentForm.errors.password" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="password_confirmation" value="Confirm Password" />
-                            <TextInput
-                                id="password_confirmation"
-                                v-model="studentForm.password_confirmation"
-                                type="password"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="studentForm.errors.password_confirmation" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="department" value="Department (Optional)" />
-                            <select
-                                id="department"
-                                v-model="studentForm.department_id"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            >
-                                <option value="">Select Department</option>
-                                <option
-                                    v-for="department in departments"
-                                    :key="department.id"
-                                    :value="department.id"
-                                >
-                                    {{ department.name }} {{ department.code ? `(${department.code})` : '' }}
-                                </option>
-                            </select>
-                            <InputError :message="studentForm.errors.department_id" class="mt-2" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <SecondaryButton type="button" @click="closeModals">
-                            Cancel
-                        </SecondaryButton>
-                        <PrimaryButton type="submit" :disabled="studentForm.processing">
-                            Create Student
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </div>
-        </Modal>
-
-        <!-- Add Department Modal -->
-        <Modal :show="showDepartmentModal" @close="closeModals">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Add New Department</h2>
-                <form @submit.prevent="submitDepartmentForm">
-                    <div class="space-y-4">
-                        <div>
-                            <InputLabel for="dept_name" value="Department Name" />
-                            <TextInput
-                                id="dept_name"
-                                v-model="departmentForm.name"
-                                type="text"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="departmentForm.errors.name" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="dept_code" value="Department Code (Optional)" />
-                            <TextInput
-                                id="dept_code"
-                                v-model="departmentForm.code"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="e.g., CS, ENG, MATH"
-                            />
-                            <InputError :message="departmentForm.errors.code" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="dept_description" value="Description (Optional)" />
-                            <textarea
-                                id="dept_description"
-                                v-model="departmentForm.description"
-                                rows="3"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                placeholder="Brief description of the department"
-                            ></textarea>
-                            <InputError :message="departmentForm.errors.description" class="mt-2" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <SecondaryButton type="button" @click="closeModals">
-                            Cancel
-                        </SecondaryButton>
-                        <PrimaryButton type="submit" :disabled="departmentForm.processing">
-                            Create Department
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </div>
-        </Modal>
-
-        <!-- Add Equipment Modal -->
-        <Modal :show="showEquipmentModal" @close="closeModals">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Add New Equipment</h2>
-                <form @submit.prevent="submitEquipmentForm" enctype="multipart/form-data">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <InputLabel for="equip_name" value="Equipment Name" />
-                            <TextInput
-                                id="equip_name"
-                                v-model="equipmentForm.name"
-                                type="text"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError :message="equipmentForm.errors.name" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="equip_category" value="Category" />
-                            <TextInput
-                                id="equip_category"
-                                v-model="equipmentForm.category"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="e.g., Microscope, Lab Equipment"
-                                required
-                            />
-                            <InputError :message="equipmentForm.errors.category" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="equip_status" value="Status" />
-                            <select
-                                id="equip_status"
-                                v-model="equipmentForm.status"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            >
-                                <option value="available">Available</option>
-                                <option value="unavailable">Unavailable</option>
-                                <option value="maintenance">Maintenance</option>
-                            </select>
-                            <InputError :message="equipmentForm.errors.status" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="equip_location" value="Location" />
-                            <TextInput
-                                id="equip_location"
-                                v-model="equipmentForm.location"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="e.g., Lab Room 101"
-                            />
-                            <InputError :message="equipmentForm.errors.location" class="mt-2" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <InputLabel for="equip_serial" value="Serial Number" />
-                            <TextInput
-                                id="equip_serial"
-                                v-model="equipmentForm.serial_number"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="Optional"
-                            />
-                            <InputError :message="equipmentForm.errors.serial_number" class="mt-2" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <InputLabel for="equip_description" value="Description" />
-                            <textarea
-                                id="equip_description"
-                                v-model="equipmentForm.description"
-                                class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                rows="3"
-                                placeholder="Describe the equipment..."
-                            ></textarea>
-                            <InputError :message="equipmentForm.errors.description" class="mt-2" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <InputLabel for="equip_image" value="Equipment Image" />
-                            <input
-                                id="equip_image"
-                                @change="handleImageUpload"
-                                type="file"
-                                accept="image/*"
-                                class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            />
-                            <p class="mt-1 text-sm text-gray-500">Choose an image file for the equipment (optional)</p>
-                            <InputError :message="equipmentForm.errors.image" class="mt-2" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <SecondaryButton type="button" @click="closeModals">
-                            Cancel
-                        </SecondaryButton>
-                        <PrimaryButton type="submit" :disabled="equipmentForm.processing">
-                            Add Equipment
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </div>
-        </Modal>
     </FacultyLayout>
 </template>

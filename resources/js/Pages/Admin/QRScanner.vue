@@ -1,0 +1,615 @@
+<script setup>
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted } from 'vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import jsQR from 'jsqr';
+
+const props = defineProps({
+    recentScans: {
+        type: Array,
+        default: () => []
+    },
+    reservation: {
+        type: Object,
+        default: null
+    },
+    message: {
+        type: String,
+        default: null
+    },
+    uploaded_qr: {
+        type: Object,
+        default: null
+    },
+    errors: {
+        type: Object,
+        default: () => ({})
+    }
+});
+
+// State
+const video = ref(null);
+const canvas = ref(null);
+const stream = ref(null);
+const isScanning = ref(false);
+const isDetecting = ref(false);
+const scanResult = ref(null);
+const error = ref(null);
+const selectedReservation = ref(null);
+const scanningInterval = ref(null);
+
+// Form for QR scanning
+const scanForm = useForm({
+    qr_data: ''
+});
+
+// Form for issuing equipment
+const issueForm = useForm({
+    reservation_id: null,
+    item_ids: []
+});
+
+// Form for approving reservations
+const approveForm = useForm({});
+
+// Form for returning equipment
+const returnForm = useForm({
+    reservation_id: null,
+    item_ids: []
+});
+
+// Form for uploading QR images
+const uploadForm = useForm({
+    qr_image: null
+});
+
+// Start camera
+const startCamera = async () => {
+    try {
+        error.value = null;
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: 'environment', // Use back camera on mobile
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        });
+
+        stream.value = mediaStream;
+        if (video.value) {
+            video.value.srcObject = mediaStream;
+            video.value.play();
+
+            // Wait for video to be ready then start detection
+            video.value.addEventListener('loadedmetadata', () => {
+                startQRDetection();
+            });
+        }
+        isScanning.value = true;
+    } catch (err) {
+        error.value = 'Unable to access camera. Please ensure you have granted camera permissions.';
+        console.error('Camera access error:', err);
+    }
+};
+
+// Stop camera
+const stopCamera = () => {
+    stopQRDetection();
+    if (stream.value) {
+        stream.value.getTracks().forEach(track => track.stop());
+        stream.value = null;
+    }
+    isScanning.value = false;
+};
+
+// Start continuous QR detection
+const startQRDetection = () => {
+    if (scanningInterval.value) {
+        clearInterval(scanningInterval.value);
+    }
+
+    isDetecting.value = true;
+    scanningInterval.value = setInterval(() => {
+        detectQRCode();
+    }, 500); // Check every 500ms
+};
+
+// Stop QR detection
+const stopQRDetection = () => {
+    if (scanningInterval.value) {
+        clearInterval(scanningInterval.value);
+        scanningInterval.value = null;
+    }
+    isDetecting.value = false;
+};
+
+// Detect QR code from video stream
+const detectQRCode = () => {
+    if (!video.value || !canvas.value || video.value.readyState !== video.value.HAVE_ENOUGH_DATA) {
+        return;
+    }
+
+    const context = canvas.value.getContext('2d', { willReadFrequently: true });
+    canvas.value.width = video.value.videoWidth;
+    canvas.value.height = video.value.videoHeight;
+
+    context.drawImage(video.value, 0, 0, canvas.value.width, canvas.value.height);
+    const imageData = context.getImageData(0, 0, canvas.value.width, canvas.value.height);
+
+    // Use jsQR to detect QR code
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+    });
+
+    if (code && code.data && code.data.trim()) {
+        // QR code detected! Stop scanning and process it
+        stopQRDetection();
+        processQRCode(code.data);
+    }
+};
+
+// Process QR code data
+const processQRCode = (qrData) => {
+    console.log('QR Code detected:', qrData);
+
+    // Show immediate feedback
+    scanResult.value = 'QR code detected! Processing...';
+    error.value = null;
+
+    scanForm.qr_data = qrData;
+
+    scanForm.post(route('admin.qr-scanner.scan'), {
+        preserveState: false,
+        preserveScroll: true,
+        onSuccess: (page) => {
+            console.log('Scan success response:', page);
+            scanResult.value = 'QR code scanned successfully!';
+
+            // Check if reservation data is in the response
+            if (page.props.reservation) {
+                selectedReservation.value = page.props.reservation;
+                console.log('Reservation loaded:', selectedReservation.value);
+            }
+
+            if (page.props.message) {
+                scanResult.value = page.props.message;
+            }
+        },
+        onError: (errors) => {
+            console.error('Scan error:', errors);
+            error.value = errors.message || 'Failed to scan QR code';
+            scanResult.value = null;
+        },
+        onFinish: () => {
+            console.log('Scan request finished');
+        }
+    });
+};
+
+// Issue selected equipment items
+// Approve reservation
+const approveReservation = () => {
+    if (!selectedReservation.value) return;
+
+    approveForm.patch(route('admin.reservations.approve', selectedReservation.value.id), {
+        onSuccess: () => {
+            // Update the local reservation status
+            selectedReservation.value.status = 'approved';
+        },
+        onError: (errors) => {
+            console.error('Approval errors:', errors);
+        }
+    });
+};
+
+const issueEquipment = () => {
+    if (!selectedReservation.value) return;
+
+    issueForm.reservation_id = selectedReservation.value.id;
+    issueForm.item_ids = getSelectedItemIds('issue');
+
+    if (issueForm.item_ids.length === 0) {
+        alert('Please select at least one item to issue');
+        return;
+    }
+
+    issueForm.post(route('admin.qr-scanner.issue'), {
+        onSuccess: () => {
+            scanResult.value = 'Equipment issued successfully!';
+            // Refresh the reservation data
+            selectedReservation.value = null;
+        },
+        onError: (errors) => {
+            error.value = errors.message || 'Failed to issue equipment';
+        }
+    });
+};
+
+// Return selected equipment items
+const returnEquipment = () => {
+    if (!selectedReservation.value) return;
+
+    returnForm.reservation_id = selectedReservation.value.id;
+    returnForm.item_ids = getSelectedItemIds('return');
+
+    if (returnForm.item_ids.length === 0) {
+        alert('Please select at least one item to return');
+        return;
+    }
+
+    returnForm.post(route('admin.qr-scanner.return'), {
+        onSuccess: () => {
+            scanResult.value = 'Equipment returned successfully!';
+            // Refresh the reservation data
+            selectedReservation.value = null;
+        },
+        onError: (errors) => {
+            error.value = errors.message || 'Failed to process return';
+        }
+    });
+};
+
+// Get selected item IDs from checkboxes
+const getSelectedItemIds = (action) => {
+    const checkboxes = document.querySelectorAll(`input[name="${action}_item"]:checked`);
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+};
+
+// Get equipment image URL
+const getEquipmentImageUrl = (imagePath) => {
+    return imagePath ? `/storage/${imagePath}` : '/images/equipment.png';
+};
+
+// Get status color class
+const getStatusColor = (status) => {
+    const colors = {
+        pending: 'text-yellow-600 bg-yellow-100',
+        approved: 'text-blue-600 bg-blue-100',
+        issued: 'text-green-600 bg-green-100',
+        returned: 'text-gray-600 bg-gray-100',
+        cancelled: 'text-red-600 bg-red-100'
+    };
+    return colors[status] || 'text-gray-600 bg-gray-100';
+};
+
+// Handle file upload
+const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        uploadForm.qr_image = file;
+    }
+};
+
+// Upload QR image
+const uploadQRImage = () => {
+    if (!uploadForm.qr_image) {
+        alert('Please select an image file');
+        return;
+    }
+
+    uploadForm.post(route('admin.qr-scanner.upload'), {
+        forceFormData: true,
+        preserveState: false,
+        preserveScroll: true,
+        onSuccess: (page) => {
+            console.log('Upload successful:', page);
+            console.log('Props received:', page.props);
+
+            // Set the reservation data from the response
+            if (page.props.reservation) {
+                selectedReservation.value = page.props.reservation;
+                console.log('Reservation set:', selectedReservation.value);
+            }
+
+            // Clear the file input
+            uploadForm.qr_image = null;
+            const fileInput = document.querySelector('input[type="file"]');
+            if (fileInput) fileInput.value = '';
+        },
+        onError: (errors) => {
+            console.error('Upload errors:', errors);
+        },
+        onFinish: () => {
+            console.log('Upload request finished');
+        }
+    });
+};
+
+// Clear results
+const clearResults = () => {
+    selectedReservation.value = null;
+    scanResult.value = null;
+    error.value = null;
+};
+
+// Initialize component state
+onMounted(() => {
+    // Set initial state from props
+    if (props.reservation) {
+        selectedReservation.value = props.reservation;
+    }
+    if (props.message) {
+        scanResult.value = props.message;
+    }
+});
+
+onUnmounted(() => {
+    stopCamera();
+    stopQRDetection();
+});
+</script>
+
+<template>
+    <Head title="QR Code Scanner" />
+
+    <AuthenticatedLayout>
+        <template #header>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
+                        QR Code Scanner
+                    </h2>
+                    <p class="text-gray-600 mt-1 text-sm sm:text-base">Scan student QR codes to issue or return equipment.</p>
+                </div>
+            </div>
+        </template>
+
+        <div class="py-4 sm:py-6 pb-8 sm:pb-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                <!-- QR Scanner Section -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">QR Code Scanner</h3>
+
+                    <!-- Camera Controls -->
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <PrimaryButton @click="startCamera" :disabled="isScanning" v-if="!isScanning">
+                            Start Camera & Detection
+                        </PrimaryButton>
+                        <SecondaryButton @click="stopCamera" v-if="isScanning">
+                            Stop Camera
+                        </SecondaryButton>
+                        <div v-if="isDetecting" class="flex items-center px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-blue-600 text-sm font-medium">Scanning for QR codes...</span>
+                        </div>
+                        <SecondaryButton @click="clearResults" v-if="selectedReservation || scanResult || error">
+                            Clear Results
+                        </SecondaryButton>
+                    </div>
+
+                    <!-- Camera View -->
+                    <div class="relative mb-4">
+                        <div class="relative w-full max-w-md">
+                            <video
+                                ref="video"
+                                class="w-full rounded-lg border border-gray-200"
+                                v-show="isScanning"
+                                autoplay
+                                muted
+                                playsinline
+                            ></video>
+
+                            <!-- QR Scanner Overlay -->
+                            <div v-if="isScanning" class="absolute inset-0 pointer-events-none">
+                                <!-- Corner indicators -->
+                                <div class="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-blue-500 rounded-tl-lg"></div>
+                                <div class="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-blue-500 rounded-tr-lg"></div>
+                                <div class="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-blue-500 rounded-bl-lg"></div>
+                                <div class="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-blue-500 rounded-br-lg"></div>
+
+                                <!-- Center scanning line -->
+                                <div v-if="isDetecting" class="absolute inset-x-4 top-1/2 h-0.5 bg-blue-500 opacity-75 animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        <canvas ref="canvas" class="hidden"></canvas>
+
+                        <!-- Camera placeholder -->
+                        <div
+                            v-if="!isScanning"
+                            class="w-full max-w-md h-64 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center"
+                        >
+                            <div class="text-center">
+                                <svg class="w-16 h-16 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <p class="text-gray-600">Click "Start Camera & Detection" to begin scanning</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Image Upload Section -->
+                    <div class="border-t border-gray-200 pt-4 mb-4">
+                        <h4 class="text-md font-medium text-gray-900 mb-3">Upload QR Code Image</h4>
+                        <div class="flex flex-col sm:flex-row gap-4 items-start">
+                            <div class="flex-1">
+                                <input
+                                    type="file"
+                                    @change="handleFileUpload"
+                                    accept="image/*"
+                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                            </div>
+                            <PrimaryButton @click="uploadQRImage" :disabled="uploadForm.processing">
+                                <svg v-if="uploadForm.processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                {{ uploadForm.processing ? 'Uploading...' : 'Upload QR' }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+
+                    <!-- Upload Results -->
+                    <div v-if="uploaded_qr" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-start space-x-4">
+                            <img :src="uploaded_qr.url" alt="Uploaded QR Code" class="w-24 h-24 object-contain border border-gray-300 rounded">
+                            <div class="flex-1">
+                                <p class="text-blue-700 font-medium mb-2">{{ uploaded_qr.message }}</p>
+                                <p class="text-sm text-blue-600">QR code processed automatically.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results and Errors -->
+                    <div v-if="errors.message" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-600">{{ errors.message }}</p>
+                    </div>
+
+                    <div v-if="error" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-600">{{ error }}</p>
+                    </div>
+
+                    <div v-if="scanResult && !error" class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p class="text-green-600">{{ scanResult }}</p>
+                    </div>
+
+                </div>
+
+                <!-- Reservation Details -->
+                <div v-if="selectedReservation" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Reservation Details</h3>
+
+                    <!-- Student Info -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <h4 class="font-medium text-gray-900 mb-2">Student Information</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div><strong>Name:</strong> {{ selectedReservation.student.name }}</div>
+                            <div><strong>Email:</strong> {{ selectedReservation.student.email }}</div>
+                            <div><strong>Reservation Code:</strong> {{ selectedReservation.reservation_code }}</div>
+                            <div>
+                                <strong>Status:</strong>
+                                <span :class="getStatusColor(selectedReservation.status)" class="px-2 py-1 rounded-full text-xs font-medium ml-1">
+                                    {{ selectedReservation.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reservation Info -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <h4 class="font-medium text-gray-900 mb-2">Reservation Information</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div><strong>Purpose:</strong> {{ selectedReservation.purpose }}</div>
+                            <div><strong>Date:</strong> {{ selectedReservation.date }}</div>
+                            <div><strong>Time:</strong> {{ selectedReservation.start_time }} - {{ selectedReservation.end_time }}</div>
+                            <div v-if="selectedReservation.notes"><strong>Notes:</strong> {{ selectedReservation.notes }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Equipment Items -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-900 mb-4">Equipment Items ({{ selectedReservation.total_items }} items)</h4>
+
+                        <div class="space-y-4">
+                            <div
+                                v-for="item in selectedReservation.items"
+                                :key="item.id"
+                                class="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
+                            >
+                                <!-- Item Checkbox -->
+                                <div class="flex flex-col space-y-2">
+                                    <label v-if="item.status === 'pending'" class="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            :value="item.id"
+                                            name="issue_item"
+                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-600">Issue</span>
+                                    </label>
+
+                                    <label v-if="item.status === 'issued'" class="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            :value="item.id"
+                                            name="return_item"
+                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-600">Return</span>
+                                    </label>
+                                </div>
+
+                                <!-- Equipment Image -->
+                                <div class="flex-shrink-0 w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-gray-200">
+                                    <img
+                                        v-if="item.equipment_image"
+                                        :src="getEquipmentImageUrl(item.equipment_image)"
+                                        :alt="item.equipment_name"
+                                        class="max-w-full max-h-full object-contain"
+                                    />
+                                    <div v-else class="text-gray-400">
+                                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- Item Details -->
+                                <div class="flex-1 min-w-0">
+                                    <h5 class="text-sm font-medium text-gray-900">{{ item.equipment_name }}</h5>
+                                    <div class="flex items-center space-x-4 mt-2">
+                                        <span class="text-sm font-medium text-blue-600">Qty: {{ item.quantity }}</span>
+                                        <span :class="getStatusColor(item.status)" class="px-2 py-1 rounded-full text-xs font-medium">
+                                            {{ item.status }}
+                                        </span>
+                                        <span v-if="item.issued_at" class="text-xs text-gray-500">Issued: {{ item.issued_at }}</span>
+                                        <span v-if="item.returned_at" class="text-xs text-gray-500">Returned: {{ item.returned_at }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Information -->
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="text-blue-800 font-medium">
+                                All actions are processed automatically when QR codes are scanned.
+                            </p>
+                        </div>
+                        <p class="text-blue-600 text-sm mt-1 ml-7">
+                            This reservation was processed automatically. Check the message above for details.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Recent Scans -->
+                <div v-if="recentScans.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Equipment Issues</h3>
+
+                    <div class="space-y-4">
+                        <div
+                            v-for="scan in recentScans"
+                            :key="scan.id"
+                            class="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
+                        >
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-medium text-gray-900">{{ scan.student.name }}</h4>
+                                <p class="text-sm text-gray-600">{{ scan.reservation_code }} - {{ scan.purpose }}</p>
+                                <div class="flex items-center space-x-4 mt-2">
+                                    <span class="text-xs text-gray-500">{{ scan.date }} {{ scan.start_time }}-{{ scan.end_time }}</span>
+                                    <span :class="getStatusColor(scan.status)" class="px-2 py-1 rounded-full text-xs font-medium">
+                                        {{ scan.status }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">{{ scan.issued_items }}/{{ scan.total_items }} items issued</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </AuthenticatedLayout>
+</template>
