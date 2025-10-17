@@ -12,13 +12,86 @@ use App\Notifications\NewReservationReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
+    /**
+     * Add item to cart
+     */
+    public function add(Request $request, Equipment $equipment)
+    {
+        $quantity = $request->input('quantity', 1);
+
+        // Validate quantity
+        if ($quantity < 1 || $quantity > $equipment->quantity) {
+            return back()->withErrors(['quantity' => 'Invalid quantity']);
+        }
+
+        $cart = session()->get('cart', []);
+
+        if (isset($cart[$equipment->id])) {
+            $cart[$equipment->id]['quantity'] += $quantity;
+        } else {
+            $cart[$equipment->id] = [
+                'id' => $equipment->id,
+                'quantity' => $quantity,
+            ];
+        }
+
+        session()->put('cart', $cart);
+
+        return back()->with('success', 'Item added to cart!');
+    }
+
+    /**
+     * Update cart item quantity
+     */
+    public function update(Request $request, Equipment $equipment)
+    {
+        $quantity = $request->input('quantity', 1);
+
+        if ($quantity < 1) {
+            return $this->remove($equipment);
+        }
+
+        $cart = session()->get('cart', []);
+
+        if (isset($cart[$equipment->id])) {
+            $cart[$equipment->id]['quantity'] = min($quantity, $equipment->quantity);
+            session()->put('cart', $cart);
+        }
+
+        return back()->with('success', 'Cart updated!');
+    }
+
+    /**
+     * Remove item from cart
+     */
+    public function remove(Equipment $equipment)
+    {
+        $cart = session()->get('cart', []);
+
+        if (isset($cart[$equipment->id])) {
+            unset($cart[$equipment->id]);
+            session()->put('cart', $cart);
+        }
+
+        return back()->with('success', 'Item removed from cart!');
+    }
+
+    /**
+     * Clear entire cart
+     */
+    public function clear()
+    {
+        session()->forget('cart');
+        return back()->with('success', 'Cart cleared!');
+    }
+
     public function checkout(Request $request)
     {
         // For GET requests, we'll pass empty cartItems since the frontend will handle cart state
@@ -134,7 +207,7 @@ class CartController extends Controller
                 ]);
             });
         } catch (\Exception $e) {
-            \Log::error('Cart processing failed: ' . $e->getMessage());
+            Log::error('Cart processing failed: ' . $e->getMessage());
 
             throw ValidationException::withMessages([
                 'general' => 'Failed to process your reservation. Please try again.',

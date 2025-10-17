@@ -40,6 +40,13 @@ const menuItems = [
         isImage: true
     },
     {
+        name: 'My Cart',
+        icon: '🛒',
+        href: route('student.cart.index'),
+        active: route().current('student.cart.index'),
+        description: 'View and manage your cart'
+    },
+    {
         name: 'My Issued Equipment',
         icon: '🤲',
         href: route('student.equipment.issued'),

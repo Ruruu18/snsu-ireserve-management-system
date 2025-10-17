@@ -397,83 +397,81 @@ const getStatusDisplayName = (status) => {
                         :key="request.id"
                         class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
                     >
-                        <div class="p-6">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-start space-x-4">
-                                        <!-- Equipment Image -->
-                                        <div class="flex-shrink-0 w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-200">
-                                            <img
-                                                v-if="request.equipment_image"
-                                                :src="getEquipmentImageUrl(request.equipment_image)"
-                                                :alt="request.equipment_name || 'Equipment'"
-                                                class="max-w-full max-h-full object-contain"
-                                            />
-                                            <div v-else class="text-gray-400">
-                                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                                </svg>
+                        <div class="p-4 sm:p-6">
+                            <div class="flex flex-col space-y-4">
+                                <div class="flex items-start space-x-3 sm:space-x-4">
+                                    <!-- Equipment Image -->
+                                    <div class="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-200">
+                                        <img
+                                            v-if="request.equipment_image"
+                                            :src="getEquipmentImageUrl(request.equipment_image)"
+                                            :alt="request.equipment_name || 'Equipment'"
+                                            class="max-w-full max-h-full object-contain"
+                                        />
+                                        <div v-else class="text-gray-400">
+                                            <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Request Details -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-xl sm:text-2xl">{{ getStatusIcon(request.status) }}</span>
+                                                <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">{{ request.equipment_name || 'Multiple Items' }}</h3>
                                             </div>
+                                            <span
+                                                :class="getStatusColor(request.status)"
+                                                class="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium border whitespace-nowrap w-fit"
+                                            >
+                                                {{ getStatusDisplayName(request.status) }}
+                                            </span>
                                         </div>
 
-                                        <!-- Request Details -->
-                                        <div class="flex-1">
-                                            <div class="flex items-center space-x-3 mb-2">
-                                                <span class="text-2xl">{{ getStatusIcon(request.status) }}</span>
-                                                <h3 class="text-lg font-semibold text-gray-900">{{ request.equipment_name || 'Multiple Items' }}</h3>
-                                                <span
-                                                    :class="getStatusColor(request.status)"
-                                                    class="px-3 py-1 rounded-full text-sm font-medium border"
-                                                >
-                                                    {{ getStatusDisplayName(request.status) }}
-                                                </span>
-                                            </div>
-
-                                            <div class="space-y-2 text-sm text-gray-600">
-                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <p><span class="font-medium text-gray-900">Category:</span> {{ request.equipment_category }}</p>
-                                                        <p><span class="font-medium text-gray-900">Date:</span> {{ request.date }}</p>
-                                                        <p><span class="font-medium text-gray-900">Time:</span> {{ request.start_time }} - {{ request.end_time }}</p>
-                                                        <p><span class="font-medium text-gray-900">Purpose:</span> {{ request.purpose }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p><span class="font-medium text-gray-900">Status:</span> {{ getStatusDescription(request.status) }}</p>
-                                                        <p><span class="font-medium text-gray-900">Requested:</span> {{ request.created_at }}</p>
-                                                        <p v-if="request.updated_at !== request.created_at">
-                                                            <span class="font-medium text-gray-900">Last Updated:</span> {{ request.updated_at }}
-                                                        </p>
-                                                        <p v-if="request.admin_notes" class="mt-2">
-                                                            <span class="font-medium text-gray-900">Admin Notes:</span>
-                                                            <span class="block text-sm text-gray-600 mt-1">{{ request.admin_notes }}</span>
-                                                        </p>
-                                                    </div>
+                                        <div class="space-y-2 text-xs sm:text-sm text-gray-600">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
+                                                <div>
+                                                    <p><span class="font-medium text-gray-900">Category:</span> {{ request.equipment_category }}</p>
+                                                    <p><span class="font-medium text-gray-900">Date:</span> {{ request.date }}</p>
+                                                    <p><span class="font-medium text-gray-900">Time:</span> {{ request.start_time }} - {{ request.end_time }}</p>
+                                                    <p><span class="font-medium text-gray-900">Purpose:</span> {{ request.purpose }}</p>
+                                                </div>
+                                                <div>
+                                                    <p><span class="font-medium text-gray-900">Status:</span> {{ getStatusDescription(request.status) }}</p>
+                                                    <p><span class="font-medium text-gray-900">Requested:</span> {{ request.created_at }}</p>
+                                                    <p v-if="request.updated_at !== request.created_at">
+                                                        <span class="font-medium text-gray-900">Last Updated:</span> {{ request.updated_at }}
+                                                    </p>
+                                                    <p v-if="request.admin_notes" class="mt-2">
+                                                        <span class="font-medium text-gray-900">Admin Notes:</span>
+                                                        <span class="block text-sm text-gray-600 mt-1">{{ request.admin_notes }}</span>
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Action Buttons -->
-                                <div class="flex-shrink-0 ml-6">
-                                    <div class="flex flex-col space-y-2">
-                                        <button
-                                            @click="$inertia.visit(route('student.reservation.qr', request.id))"
-                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium transition duration-200 hover:underline flex items-center"
-                                        >
-                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M0 0h6v6H0V0zm2 2v2h2V2H2zM0 8h6v6H0V8zm2 2v2h2v-2H2zM8 0h6v6H8V0zm2 2v2h2V2h-2zM8 8h2v2H8V8zM8 12h2v2H8v-2zM12 8h2v2h-2V8zM8 16h6v2H8v-2zM16 16h2v2h-2v-2zM18 8h2v6h-2V8zM16 0h2v2h-2V0zM20 0h2v2h-2V0zM16 4h6v2h-6V4zM20 6h2v2h-2V6z"/>
-                                            </svg>
-                                            View QR
-                                        </button>
-                                        <button
-                                            v-if="request.can_cancel"
-                                            @click="cancelReservation(request.id)"
-                                            class="text-red-600 hover:text-red-800 text-sm font-medium transition duration-200 hover:underline"
-                                        >
-                                            Cancel Request
-                                        </button>
-                                    </div>
+                                <!-- Action Buttons - Moved below content on mobile -->
+                                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 border-t border-gray-100">
+                                    <button
+                                        @click="$inertia.visit(route('student.reservation.qr', request.id))"
+                                        class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition duration-200"
+                                    >
+                                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M0 0h6v6H0V0zm2 2v2h2V2H2zM0 8h6v6H0V8zm2 2v2h2v-2H2zM8 0h6v6H8V0zm2 2v2h2V2h-2zM8 8h2v2H8V8zM8 12h2v2H8v-2zM12 8h2v2h-2V8zM8 16h6v2H8v-2zM16 16h2v2h-2v-2zM18 8h2v6h-2V8zM16 0h2v2h-2V0zM20 0h2v2h-2V0zM16 4h6v2h-6V4zM20 6h2v2h-2V6z"/>
+                                        </svg>
+                                        View QR Code
+                                    </button>
+                                    <button
+                                        v-if="request.can_cancel"
+                                        @click="cancelReservation(request.id)"
+                                        class="inline-flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition duration-200"
+                                    >
+                                        Cancel Reservation
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -56,7 +56,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/student/equipment/{reservation}/request-return', [StudentDashboardController::class, 'requestReturn'])->name('student.equipment.request-return');
 
     // Cart routes
+    Route::get('/student/cart', [\App\Http\Controllers\Student\CartPageController::class, 'index'])->name('student.cart.index');
     Route::get('/student/cart/checkout', [CartController::class, 'checkout'])->name('student.cart.checkout');
+    Route::post('/student/cart/add/{equipment}', [CartController::class, 'add'])->name('student.cart.add');
+    Route::post('/student/cart/update/{equipment}', [CartController::class, 'update'])->name('student.cart.update');
+    Route::delete('/student/cart/remove/{equipment}', [CartController::class, 'remove'])->name('student.cart.remove');
+    Route::delete('/student/cart/clear', [CartController::class, 'clear'])->name('student.cart.clear');
     Route::post('/student/cart/process', [CartController::class, 'process'])->name('student.cart.process');
 
     // Handle GET requests to cart process (redirect to checkout)

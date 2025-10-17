@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 use App\Models\User;
 use App\Models\Reservation;
 use App\Notifications\ReservationStatusChanged;
@@ -28,7 +27,7 @@ class TestEmailCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
         $email = $this->argument('email') ?? 'lmgallentes.15@gmail.com';
 
