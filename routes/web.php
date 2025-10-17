@@ -88,9 +88,7 @@ Route::middleware('auth')->group(function () {
             return redirect()->route('student.cart.checkout');
         })->name('reservations.create');
 
-        Route::post('/reservations', function() {
-            return redirect()->route('student.cart.checkout')->with('info', 'Please use the cart system for reservations');
-        })->name('reservations.store');
+        Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
 
         Route::post('/reservations/availability', function() {
             return response()->json(['reserved_slots' => []]);

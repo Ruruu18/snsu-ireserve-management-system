@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class CartPageController extends Controller
@@ -11,8 +11,9 @@ class CartPageController extends Controller
     /**
      * Display the cart page.
      */
-    public function index(Request $request)
+    public function index()
     {
+        $user = Auth::user();
         $cart = session()->get('cart', []);
 
         // Get cart items with full equipment details
@@ -36,9 +37,18 @@ class CartPageController extends Controller
             }
         }
 
+        // Get user stats for sidebar
+        $stats = [
+            'total_reservations' => $user->reservations()->count(),
+            'pending_reservations' => $user->pendingReservations()->count(),
+            'active_reservations' => $user->activeReservations()->count(),
+            'completed_reservations' => $user->reservations()->where('status', 'completed')->count(),
+        ];
+
         return Inertia::render('Student/Cart', [
             'cartItems' => $cartItems,
             'totalItems' => $totalItems,
+            'stats' => $stats,
         ]);
     }
 }

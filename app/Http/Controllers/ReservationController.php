@@ -3,13 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Equipment;
+use App\Models\Notification;
 use App\Models\Reservation;
 use App\Models\ReservationItem;
 use App\Models\User;
 use App\Notifications\NewReservationReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ReservationController extends Controller
@@ -76,57 +81,105 @@ class ReservationController extends Controller
             'purpose' => 'required|string|max:500',
         ]);
 
-        // Check if equipment is available
-        $equipment = Equipment::findOrFail($validated['equipment_id']);
-        if ($equipment->status !== 'available') {
-            return back()->withErrors(['equipment_id' => 'This equipment is not available for reservation.']);
+        try {
+            return DB::transaction(function () use ($validated) {
+                // Check if equipment is available
+                $equipment = Equipment::findOrFail($validated['equipment_id']);
+                if ($equipment->status !== 'available') {
+                    throw ValidationException::withMessages([
+                        'equipment_id' => 'This equipment is not available for reservation.'
+                    ]);
+                }
+
+                // Check for conflicting reservations using the new cart system
+                $conflictingReservation = ReservationItem::where('equipment_id', $validated['equipment_id'])
+                    ->whereHas('reservation', function ($query) use ($validated) {
+                        $query->where('reservation_date', $validated['reservation_date'])
+                            ->where('status', '!=', 'cancelled')
+                            ->where(function ($q) use ($validated) {
+                                $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                                  ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                                  ->orWhere(function ($q2) use ($validated) {
+                                      $q2->where('start_time', '<=', $validated['start_time'])
+                                         ->where('end_time', '>=', $validated['end_time']);
+                                  });
+                            });
+                    })
+                    ->exists();
+
+                if ($conflictingReservation) {
+                    throw ValidationException::withMessages([
+                        'time' => 'This equipment is already reserved for the selected time slot.'
+                    ]);
+                }
+
+                // Create the reservation using the new cart system
+                $reservation = Reservation::create([
+                    'user_id' => Auth::id(),
+                    'reservation_date' => $validated['reservation_date'],
+                    'start_time' => $validated['start_time'],
+                    'end_time' => $validated['end_time'],
+                    'purpose' => $validated['purpose'],
+                    'status' => 'pending',
+                ]);
+
+                // Create the reservation item
+                ReservationItem::create([
+                    'reservation_id' => $reservation->id,
+                    'equipment_id' => $validated['equipment_id'],
+                    'quantity' => 1,
+                    'status' => 'pending',
+                ]);
+
+                // Load the reservation with relationships
+                $reservation->load(['items.equipment', 'user']);
+
+                // Generate QR code
+                $qrData = $reservation->generateQRData();
+                $qrCodeDataString = json_encode($qrData);
+
+                // Generate QR code as PNG using chillerlan library (works with GD)
+                $options = new \chillerlan\QRCode\QROptions([
+                    'version'    => 10,
+                    'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_IMAGE_PNG,
+                    'eccLevel'   => \chillerlan\QRCode\QRCode::ECC_L,
+                    'scale'      => 8,
+                    'imageBase64' => false,
+                ]);
+
+                $qrcode = new \chillerlan\QRCode\QRCode($options);
+                $qrCodePng = $qrcode->render($qrCodeDataString);
+
+                // Save PNG QR code to storage
+                $qrFileName = 'qr-codes/reservation-' . $reservation->id . '.png';
+                Storage::disk('public')->put($qrFileName, $qrCodePng);
+
+                // Update reservation with QR data
+                $reservation->update([
+                    'qr_code_data' => $qrData,
+                    'qr_code_path' => $qrFileName,
+                ]);
+
+                // Create notification for admin
+                Notification::createNewReservation($reservation);
+
+                // Send email notifications to all admins and faculty
+                $admins = User::whereIn('role', ['admin', 'faculty'])->get();
+                foreach ($admins as $admin) {
+                    $admin->notify(new NewReservationReceived($reservation));
+                }
+
+                return back()->with('success', 'Reservation request submitted successfully! You will be notified once it is reviewed.');
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Reservation creation failed: ' . $e->getMessage());
+
+            throw ValidationException::withMessages([
+                'general' => 'Failed to process your reservation. Please try again.',
+            ]);
         }
-
-        // Check for conflicting reservations using the new cart system
-        $conflictingReservation = ReservationItem::where('equipment_id', $validated['equipment_id'])
-            ->whereHas('reservation', function ($query) use ($validated) {
-                $query->where('reservation_date', $validated['reservation_date'])
-                    ->where('status', '!=', 'cancelled')
-                    ->where(function ($q) use ($validated) {
-                        $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                          ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                          ->orWhere(function ($q2) use ($validated) {
-                              $q2->where('start_time', '<=', $validated['start_time'])
-                                 ->where('end_time', '>=', $validated['end_time']);
-                          });
-                    });
-            })
-            ->exists();
-
-        if ($conflictingReservation) {
-            return back()->withErrors(['time' => 'This equipment is already reserved for the selected time slot.']);
-        }
-
-        // Create the reservation using the new cart system
-        $reservation = Reservation::create([
-            'user_id' => Auth::id(),
-            'reservation_date' => $validated['reservation_date'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'purpose' => $validated['purpose'],
-            'status' => 'pending',
-            'reservation_code' => 'RES-' . strtoupper(substr(md5(uniqid()), 0, 8)),
-        ]);
-
-        // Create the reservation item
-        ReservationItem::create([
-            'reservation_id' => $reservation->id,
-            'equipment_id' => $validated['equipment_id'],
-            'quantity' => 1,
-        ]);
-
-        // Send email notifications to all admins and faculty
-        $admins = User::whereIn('role', ['admin', 'faculty'])->get();
-        foreach ($admins as $admin) {
-            $admin->notify(new NewReservationReceived($reservation));
-        }
-
-        return back()->with('success', 'Reservation request submitted successfully! You will be notified once it is reviewed.');
     }
 
     /**

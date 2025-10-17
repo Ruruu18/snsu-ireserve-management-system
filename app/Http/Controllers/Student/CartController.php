@@ -92,12 +92,23 @@ class CartController extends Controller
         return back()->with('success', 'Cart cleared!');
     }
 
-    public function checkout(Request $request)
+    public function checkout()
     {
+        $user = Auth::user();
+
+        // Get user stats for sidebar
+        $stats = [
+            'total_reservations' => $user->reservations()->count(),
+            'pending_reservations' => $user->pendingReservations()->count(),
+            'active_reservations' => $user->activeReservations()->count(),
+            'completed_reservations' => $user->reservations()->where('status', 'completed')->count(),
+        ];
+
         // For GET requests, we'll pass empty cartItems since the frontend will handle cart state
         // The frontend cart state will be used to populate the checkout form
         return Inertia::render('Student/CartCheckout', [
             'cartItems' => [], // Frontend will populate this from localStorage
+            'stats' => $stats,
         ]);
     }
 
@@ -182,6 +193,14 @@ class CartController extends Controller
 
                 // QR code base64 already set above
 
+                // Get user stats for sidebar
+                $stats = [
+                    'total_reservations' => $user->reservations()->count(),
+                    'pending_reservations' => $user->pendingReservations()->count(),
+                    'active_reservations' => $user->activeReservations()->count(),
+                    'completed_reservations' => $user->reservations()->where('status', 'completed')->count(),
+                ];
+
                 return Inertia::render('Student/ReservationQR', [
                     'reservation' => [
                         'id' => $reservation->id,
@@ -204,6 +223,7 @@ class CartController extends Controller
                         }),
                     ],
                     'qrCode' => $qrCodeBase64,
+                    'stats' => $stats,
                 ]);
             });
         } catch (\Exception $e) {
@@ -215,8 +235,10 @@ class CartController extends Controller
         }
     }
 
-    public function viewQR(Request $request, Reservation $reservation)
+    public function viewQR(Reservation $reservation)
     {
+        $user = Auth::user();
+
         // Ensure user can only view their own reservations
         if ($reservation->user_id !== Auth::id()) {
             abort(403, 'Unauthorized access to reservation');
@@ -224,6 +246,14 @@ class CartController extends Controller
 
         // Load reservation with items
         $reservation->load(['items.equipment', 'user']);
+
+        // Get user stats for sidebar
+        $stats = [
+            'total_reservations' => $user->reservations()->count(),
+            'pending_reservations' => $user->pendingReservations()->count(),
+            'active_reservations' => $user->activeReservations()->count(),
+            'completed_reservations' => $user->reservations()->where('status', 'completed')->count(),
+        ];
 
         // Check if QR code exists
         if (!$reservation->qr_code_data || !$reservation->qr_code_path) {
@@ -299,6 +329,7 @@ class CartController extends Controller
                 'items_count' => $reservation->items->count(),
             ],
             'qrCode' => $qrCodeBase64,
+            'stats' => $stats,
         ]);
     }
 }
