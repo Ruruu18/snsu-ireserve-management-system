@@ -78,15 +78,23 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Student reservation routes (Legacy system - keeping cancel route for compatibility)
+    // Student reservation routes (Legacy system - keeping for compatibility, redirects to cart)
     Route::middleware('verified')->group(function () {
         Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
         Route::patch('/reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
-        // Note: Creation routes removed - use cart system instead
-        // Route::get('/reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
-        // Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
-        // Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
-        // Route::post('/reservations/availability', [ReservationController::class, 'checkAvailability'])->name('reservations.availability');
+
+        // Legacy routes redirected to cart system
+        Route::get('/reservations/create', function() {
+            return redirect()->route('student.cart.checkout');
+        })->name('reservations.create');
+
+        Route::post('/reservations', function() {
+            return redirect()->route('student.cart.checkout')->with('info', 'Please use the cart system for reservations');
+        })->name('reservations.store');
+
+        Route::post('/reservations/availability', function() {
+            return response()->json(['reserved_slots' => []]);
+        })->name('reservations.availability');
     });
 
     // Admin routes (accessible only by admin users)
