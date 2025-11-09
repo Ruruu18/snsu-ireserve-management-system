@@ -45,20 +45,8 @@ const scanForm = useForm({
     qr_data: ''
 });
 
-// Form for issuing equipment
-const issueForm = useForm({
-    reservation_id: null,
-    item_ids: []
-});
-
 // Form for approving reservations
 const approveForm = useForm({});
-
-// Form for returning equipment
-const returnForm = useForm({
-    reservation_id: null,
-    item_ids: []
-});
 
 // Form for uploading QR images
 const uploadForm = useForm({
@@ -188,7 +176,6 @@ const processQRCode = (qrData) => {
     });
 };
 
-// Issue selected equipment items
 // Approve reservation
 const approveReservation = () => {
     if (!selectedReservation.value) return;
@@ -204,59 +191,6 @@ const approveReservation = () => {
     });
 };
 
-const issueEquipment = () => {
-    if (!selectedReservation.value) return;
-
-    issueForm.reservation_id = selectedReservation.value.id;
-    issueForm.item_ids = getSelectedItemIds('issue');
-
-    if (issueForm.item_ids.length === 0) {
-        alert('Please select at least one item to issue');
-        return;
-    }
-
-    issueForm.post(route('admin.qr-scanner.issue'), {
-        onSuccess: () => {
-            scanResult.value = 'Equipment issued successfully!';
-            // Refresh the reservation data
-            selectedReservation.value = null;
-        },
-        onError: (errors) => {
-            error.value = errors.message || 'Failed to issue equipment';
-        }
-    });
-};
-
-// Return selected equipment items
-const returnEquipment = () => {
-    if (!selectedReservation.value) return;
-
-    returnForm.reservation_id = selectedReservation.value.id;
-    returnForm.item_ids = getSelectedItemIds('return');
-
-    if (returnForm.item_ids.length === 0) {
-        alert('Please select at least one item to return');
-        return;
-    }
-
-    returnForm.post(route('admin.qr-scanner.return'), {
-        onSuccess: () => {
-            scanResult.value = 'Equipment returned successfully!';
-            // Refresh the reservation data
-            selectedReservation.value = null;
-        },
-        onError: (errors) => {
-            error.value = errors.message || 'Failed to process return';
-        }
-    });
-};
-
-// Get selected item IDs from checkboxes
-const getSelectedItemIds = (action) => {
-    const checkboxes = document.querySelectorAll(`input[name="${action}_item"]:checked`);
-    return Array.from(checkboxes).map(cb => parseInt(cb.value));
-};
-
 // Get equipment image URL
 const getEquipmentImageUrl = (imagePath) => {
     return imagePath ? `/storage/${imagePath}` : '/images/equipment.png';
@@ -269,6 +203,7 @@ const getStatusColor = (status) => {
         approved: 'text-blue-600 bg-blue-100',
         issued: 'text-green-600 bg-green-100',
         returned: 'text-gray-600 bg-gray-100',
+        completed: 'text-purple-600 bg-purple-100',
         cancelled: 'text-red-600 bg-red-100'
     };
     return colors[status] || 'text-gray-600 bg-gray-100';
@@ -514,29 +449,6 @@ onUnmounted(() => {
                                 :key="item.id"
                                 class="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
                             >
-                                <!-- Item Checkbox -->
-                                <div class="flex flex-col space-y-2">
-                                    <label v-if="item.status === 'pending'" class="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            :value="item.id"
-                                            name="issue_item"
-                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        />
-                                        <span class="ml-2 text-sm text-gray-600">Issue</span>
-                                    </label>
-
-                                    <label v-if="item.status === 'issued'" class="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            :value="item.id"
-                                            name="return_item"
-                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        />
-                                        <span class="ml-2 text-sm text-gray-600">Return</span>
-                                    </label>
-                                </div>
-
                                 <!-- Equipment Image -->
                                 <div class="flex-shrink-0 w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-gray-200">
                                     <img
@@ -602,7 +514,12 @@ onUnmounted(() => {
                                     <span :class="getStatusColor(scan.status)" class="px-2 py-1 rounded-full text-xs font-medium">
                                         {{ scan.status }}
                                     </span>
-                                    <span class="text-xs text-gray-500">{{ scan.issued_items }}/{{ scan.total_items }} items issued</span>
+                                    <span class="text-xs text-gray-500" v-if="scan.status === 'completed' || scan.status === 'returned'">
+                                        {{ scan.returned_items }}/{{ scan.total_items }} items returned
+                                    </span>
+                                    <span class="text-xs text-gray-500" v-else>
+                                        {{ scan.issued_items }}/{{ scan.total_items }} items issued
+                                    </span>
                                 </div>
                             </div>
                         </div>
