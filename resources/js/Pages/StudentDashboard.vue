@@ -262,36 +262,69 @@ const reserveEquipment = (equipment) => {
                                             v-for="reservation in props.recentReservations"
                                             :key="reservation.id"
                                             @click="viewReservationDetails(reservation)"
-                                            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:shadow-lg transition-all duration-200 border border-gray-200 cursor-pointer group"
+                                            class="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:shadow-lg transition-all duration-200 border border-gray-200 cursor-pointer group"
                                         >
-                                            <div class="flex-1">
-                                                <div class="flex items-center space-x-3">
-                                                    <span class="text-lg">{{ getStatusIcon(reservation.status) }}</span>
-                                                    <div>
-                                                        <h4 class="font-medium text-gray-900 group-hover:text-blue-700 text-sm transition-colors duration-200 truncate">{{ reservation.equipment_name }}</h4>
-                                                        <p class="text-xs text-gray-600 truncate">{{ reservation.date }} • {{ reservation.start_time }} - {{ reservation.end_time }}</p>
-                                                        <p v-if="reservation.purpose" class="text-xs text-gray-500 mt-1 truncate">{{ reservation.purpose }}</p>
+                                            <!-- Desktop layout -->
+                                            <div class="hidden sm:flex items-center justify-between">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center space-x-3">
+                                                        <span class="text-lg">{{ getStatusIcon(reservation.status) }}</span>
+                                                        <div class="min-w-0 flex-1">
+                                                            <h4 class="font-medium text-gray-900 group-hover:text-blue-700 text-sm transition-colors duration-200 truncate">{{ reservation.equipment_name }}</h4>
+                                                            <p class="text-xs text-gray-600 truncate">{{ reservation.date }} • {{ reservation.start_time }} - {{ reservation.end_time }}</p>
+                                                            <p v-if="reservation.purpose" class="text-xs text-gray-500 mt-1 truncate">{{ reservation.purpose }}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <div class="flex items-center space-x-2 ml-3">
+                                                    <span
+                                                        :class="getStatusColor(reservation.status)"
+                                                        class="px-2 py-1 rounded-full text-xs font-medium capitalize border whitespace-nowrap"
+                                                    >
+                                                        {{ reservation.status }}
+                                                    </span>
+                                                    <button
+                                                        v-if="reservation.can_cancel"
+                                                        @click.stop="cancelReservation(reservation.id)"
+                                                        class="text-red-600 hover:text-red-800 text-xs font-medium transition duration-200 hover:underline whitespace-nowrap"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                    </svg>
+                                                </div>
                                             </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span
-                                                    :class="getStatusColor(reservation.status)"
-                                                    class="px-2 py-1 rounded-full text-xs font-medium capitalize border"
-                                                >
-                                                    {{ reservation.status }}
-                                                </span>
-                                                <button
-                                                    v-if="reservation.can_cancel"
-                                                    @click.stop="cancelReservation(reservation.id)"
-                                                    class="text-red-600 hover:text-red-800 text-xs font-medium transition duration-200 hover:underline"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <!-- Click indicator -->
-                                                <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                                </svg>
+
+                                            <!-- Mobile layout -->
+                                            <div class="sm:hidden">
+                                                <div class="flex items-start space-x-3 mb-2">
+                                                    <span class="text-lg flex-shrink-0">{{ getStatusIcon(reservation.status) }}</span>
+                                                    <div class="flex-1 min-w-0">
+                                                        <h4 class="font-medium text-gray-900 group-hover:text-blue-700 text-sm transition-colors duration-200">{{ reservation.equipment_name }}</h4>
+                                                        <p class="text-xs text-gray-600 mt-0.5">{{ reservation.date }}</p>
+                                                        <p class="text-xs text-gray-600">{{ reservation.start_time }} - {{ reservation.end_time }}</p>
+                                                        <p v-if="reservation.purpose" class="text-xs text-gray-500 mt-1">{{ reservation.purpose }}</p>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors duration-200 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                    </svg>
+                                                </div>
+                                                <div class="flex items-center justify-between pl-8">
+                                                    <span
+                                                        :class="getStatusColor(reservation.status)"
+                                                        class="px-2 py-1 rounded-full text-xs font-medium capitalize border"
+                                                    >
+                                                        {{ reservation.status }}
+                                                    </span>
+                                                    <button
+                                                        v-if="reservation.can_cancel"
+                                                        @click.stop="cancelReservation(reservation.id)"
+                                                        class="text-red-600 hover:text-red-800 text-xs font-medium transition duration-200 hover:underline"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

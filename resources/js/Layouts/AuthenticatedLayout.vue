@@ -20,10 +20,7 @@ const closeMobileSidebar = () => {
 
             <!-- Mobile Navigation Menu -->
             <div
-                :class="{
-                    block: showingNavigationDropdown,
-                    hidden: !showingNavigationDropdown,
-                }"
+                v-show="showingNavigationDropdown"
                 class="sm:hidden"
             >
                 <div class="space-y-1 pb-3 pt-2">

@@ -32,9 +32,6 @@ const selectedCategory = ref(props.filters.category || '');
 const sortBy = ref(props.filters.sort_by || 'name');
 const sortDirection = ref(props.filters.sort_direction || 'asc');
 
-// Back to top button
-const showBackToTop = ref(false);
-
 // Dropdown states
 const showCategoryDropdown = ref(false);
 const categoryButtonRef = ref(null);
@@ -99,14 +96,6 @@ const handleResize = () => {
 const handleScroll = () => {
     // Close dropdowns on scroll to prevent positioning issues
     closeDropdowns();
-
-    // Show/hide back to top button
-    showBackToTop.value = window.scrollY > 300;
-};
-
-// Scroll to top function
-const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // Click outside to close dropdowns
@@ -137,7 +126,10 @@ const showReservationModal = ref(false);
 const selectedEquipment = ref(null);
 
 // Cart functionality
-const { addToCart, isInCart, getItemQuantity } = useCart();
+const { addToCart, removeFromCart, isInCart, getItemQuantity } = useCart();
+
+// Track items being added to prevent duplicate additions
+const addingToCart = ref(new Set());
 
 // Server-side filtering
 const updateFilters = debounce(() => {
@@ -204,20 +196,63 @@ const handleReservationCreated = () => {
     selectedEquipment.value = null;
 };
 
-// Cart methods
-const handleAddToCart = (equipment, quantity = 1) => {
-    addToCart(equipment, quantity);
+// Cart methods - Toggle add/remove from cart
+const handleCartToggle = (equipment, quantity = 1) => {
+    // Prevent duplicate actions from rapid clicks
+    if (addingToCart.value.has(equipment.id)) {
+        return;
+    }
 
-    // Show success feedback
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300';
-    toast.textContent = `Added ${equipment.name} to cart!`;
-    document.body.appendChild(toast);
+    // Mark as processing
+    addingToCart.value.add(equipment.id);
 
-    setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => document.body.removeChild(toast), 300);
-    }, 2000);
+    try {
+        // Check if item is already in cart
+        if (isInCart(equipment.id)) {
+            // Remove from cart
+            removeFromCart(equipment.id);
+
+            // Show remove feedback
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+            toast.textContent = `Removed ${equipment.name} from cart!`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 2000);
+        } else {
+            // Add to cart
+            addToCart(equipment, quantity);
+
+            // Show success feedback
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+            toast.textContent = `Added ${equipment.name} to cart!`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Error toggling cart:', error);
+    } finally {
+        // Remove from processing set after a short delay to prevent rapid successive clicks
+        setTimeout(() => {
+            addingToCart.value.delete(equipment.id);
+        }, 500);
+    }
 };
 
 const clearFilters = () => {
@@ -290,7 +325,7 @@ const toggleSort = (field) => {
                                     <button
                                         ref="categoryButtonRef"
                                         @click="toggleCategoryDropdown"
-                                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-left flex items-center justify-between text-sm"
+                                        class="flex w-full items-center justify-between px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-left text-sm"
                                     >
                                         <span class="truncate pr-2">{{ selectedCategory || 'All Categories' }}</span>
                                         <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,24 +473,34 @@ const toggleSort = (field) => {
 
                                         <!-- Action Buttons -->
                                         <div class="space-y-2">
-                                            <!-- Add to Cart Button -->
+                                            <!-- Add/Remove Cart Button (Toggle) -->
                                             <button
-                                                @click="handleAddToCart(equipment)"
-                                                :disabled="isInCart(equipment.id) || equipment.available_quantity <= 0"
+                                                @click="handleCartToggle(equipment)"
+                                                :disabled="equipment.available_quantity <= 0 || addingToCart.has(equipment.id)"
                                                 class="w-full inline-flex items-center justify-center px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition ease-in-out duration-150 shadow-sm"
-                                                :class="isInCart(equipment.id)
-                                                    ? 'text-green-700 bg-green-50 border border-green-200 cursor-not-allowed'
-                                                    : equipment.available_quantity <= 0
+                                                :class="equipment.available_quantity <= 0
                                                     ? 'text-gray-500 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                                                    : addingToCart.has(equipment.id)
+                                                    ? 'text-gray-500 bg-gray-100 border border-gray-200 cursor-wait'
+                                                    : isInCart(equipment.id)
+                                                    ? 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 hover:border-green-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
                                                     : 'text-white bg-blue-600 hover:bg-blue-700 border border-transparent hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'"
                                             >
-                                                <template v-if="isInCart(equipment.id)">
+                                                <template v-if="addingToCart.has(equipment.id)">
+                                                    <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span class="hidden xs:inline">Processing...</span>
+                                                    <span class="xs:hidden">...</span>
+                                                </template>
+                                                <template v-else-if="isInCart(equipment.id)">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                                     </svg>
-                                                    <span class="hidden xs:inline">In Cart</span>
-                                                    <span class="xs:hidden">✓</span>
-                                                    <span class="ml-1 hidden sm:inline">({{ getItemQuantity(equipment.id) }})</span>
+                                                    <span class="hidden sm:inline">In Cart ({{ getItemQuantity(equipment.id) }}) - Click to Remove</span>
+                                                    <span class="hidden xs:inline sm:hidden">In Cart ({{ getItemQuantity(equipment.id) }})</span>
+                                                    <span class="xs:hidden">✓ ({{ getItemQuantity(equipment.id) }})</span>
                                                 </template>
                                                 <template v-else-if="equipment.available_quantity <= 0">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

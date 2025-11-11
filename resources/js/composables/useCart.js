@@ -6,16 +6,22 @@ import axios from 'axios';
 const cartItems = ref([]);
 const isCartOpen = ref(false);
 
+// Flag to track if cart has been initialized
+let isInitialized = false;
+
 // Load cart from localStorage on initialization
 const loadCartFromStorage = () => {
     try {
         const stored = localStorage.getItem('equipment_cart');
         if (stored) {
-            cartItems.value = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            cartItems.value = Array.isArray(parsed) ? parsed : [];
         }
     } catch (error) {
         console.error('Error loading cart from storage:', error);
         cartItems.value = [];
+        // Clear corrupted data
+        localStorage.removeItem('equipment_cart');
     }
 };
 
@@ -31,10 +37,17 @@ const saveCartToStorage = () => {
 // Watch for cart changes and save to storage
 watch(cartItems, saveCartToStorage, { deep: true });
 
+// Initialize cart on module load
+if (typeof window !== 'undefined') {
+    loadCartFromStorage();
+    isInitialized = true;
+}
+
 export function useCart() {
-    // Load cart on first use
-    if (cartItems.value.length === 0) {
+    // Load cart on first use if not already initialized
+    if (!isInitialized && typeof window !== 'undefined') {
         loadCartFromStorage();
+        isInitialized = true;
     }
 
     // Computed properties
@@ -60,12 +73,25 @@ export function useCart() {
 
     // Add item to cart
     const addToCart = (equipment, quantity = 1) => {
+        // Validate input
+        if (!equipment || !equipment.id) {
+            console.error('Invalid equipment object');
+            return;
+        }
+
+        if (quantity <= 0) {
+            console.error('Quantity must be greater than 0');
+            return;
+        }
+
         const existingItem = cartItems.value.find(item => item.id === equipment.id);
         const addedQuantity = quantity;
 
         if (existingItem) {
+            // Update existing item quantity
             existingItem.quantity += quantity;
         } else {
+            // Add new item to cart
             cartItems.value.push({
                 id: equipment.id,
                 name: equipment.name,
@@ -140,9 +166,12 @@ export function useCart() {
     };
 
     return {
-        // State
+        // State - return as readonly computed for cartItems, but writable computed for isCartOpen
         cartItems: computed(() => cartItems.value),
-        isCartOpen: computed(() => isCartOpen.value),
+        isCartOpen: computed({
+            get: () => isCartOpen.value,
+            set: (val) => { isCartOpen.value = val; }
+        }),
 
         // Computed
         totalItems,
