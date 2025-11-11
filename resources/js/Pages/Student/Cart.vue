@@ -2,17 +2,10 @@
 import StudentLayout from '@/Layouts/StudentLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { useCart } from '@/composables/useCart';
 
-const props = defineProps({
-    cartItems: {
-        type: Array,
-        required: true
-    },
-    totalItems: {
-        type: Number,
-        required: true
-    }
-});
+// Use the frontend cart composable
+const { cartItems: frontendCartItems, totalItems, updateQuantity: updateCartQuantity, removeFromCart: removeCartItem, clearCart: clearFrontendCart } = useCart();
 
 // Get equipment image URL
 const getEquipmentImageUrl = (imagePath) => {
@@ -26,31 +19,20 @@ const updateQuantity = (equipmentId, newQuantity) => {
         return;
     }
 
-    router.post(route('student.cart.update', equipmentId), {
-        quantity: newQuantity
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Cart will be updated automatically
-        }
-    });
+    updateCartQuantity(equipmentId, newQuantity);
 };
 
 // Remove from cart
 const removeFromCart = (equipmentId) => {
     if (confirm('Are you sure you want to remove this item from your cart?')) {
-        router.delete(route('student.cart.remove', equipmentId), {
-            preserveScroll: true
-        });
+        removeCartItem(equipmentId);
     }
 };
 
 // Clear cart
 const clearCart = () => {
     if (confirm('Are you sure you want to clear your entire cart?')) {
-        router.delete(route('student.cart.clear'), {
-            preserveScroll: true
-        });
+        clearFrontendCart();
     }
 };
 
@@ -58,6 +40,9 @@ const clearCart = () => {
 const proceedToCheckout = () => {
     router.visit(route('student.cart.checkout'));
 };
+
+// Use computed to get the cart items array
+const cartItems = computed(() => frontendCartItems.value);
 </script>
 
 <template>
@@ -126,11 +111,14 @@ const proceedToCheckout = () => {
                                     <!-- Item Details -->
                                     <div class="flex-1 min-w-0">
                                         <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ item.name }}</h4>
-                                        <p class="text-sm text-gray-600 mb-2">
+                                        <p v-if="item.description" class="text-sm text-gray-600 mb-2">
+                                            {{ item.description }}
+                                        </p>
+                                        <p class="text-sm text-gray-600 mb-1">
                                             <span class="font-medium">Category:</span> {{ item.category }}
                                         </p>
-                                        <p class="text-sm text-gray-600">
-                                            <span class="font-medium">Available:</span> {{ item.available_quantity }} units
+                                        <p v-if="item.location" class="text-sm text-gray-600">
+                                            <span class="font-medium">Location:</span> {{ item.location }}
                                         </p>
                                     </div>
 
@@ -148,13 +136,7 @@ const proceedToCheckout = () => {
                                             <span class="w-12 text-center font-semibold text-gray-900">{{ item.quantity }}</span>
                                             <button
                                                 @click="updateQuantity(item.id, item.quantity + 1)"
-                                                :disabled="item.quantity >= item.available_quantity"
-                                                :class="[
-                                                    'w-8 h-8 flex items-center justify-center rounded-md transition duration-200',
-                                                    item.quantity >= item.available_quantity
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
-                                                ]"
+                                                class="w-8 h-8 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-md transition duration-200"
                                             >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

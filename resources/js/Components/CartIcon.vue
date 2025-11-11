@@ -1,12 +1,17 @@
 <script setup>
 import { useCart } from '@/composables/useCart';
+import { router } from '@inertiajs/vue3';
 
-const { totalItems, openCart } = useCart();
+const { totalItems } = useCart();
+
+const goToCart = () => {
+    router.visit(route('student.cart.index'));
+};
 </script>
 
 <template>
     <button
-        @click="openCart"
+        @click="goToCart"
         class="relative p-2 text-gray-600 hover:text-gray-900 transition-colors duration-200 rounded-lg hover:bg-gray-100"
         title="View Cart"
     >
