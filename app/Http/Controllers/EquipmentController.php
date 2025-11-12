@@ -124,7 +124,7 @@ class EquipmentController extends Controller
     {
         // Check if equipment has active reservations
         $hasActiveReservations = $equipment->reservations()
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('reservations.status', ['pending', 'approved'])
             ->where('reservation_date', '>=', now()->toDateString())
             ->exists();
 

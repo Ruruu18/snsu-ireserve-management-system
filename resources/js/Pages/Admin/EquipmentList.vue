@@ -34,7 +34,7 @@ const addForm = useForm({
     category: '',
     status: 'available',
     serial_number: '',
-    total_quantity: 1,
+    total_quantity: '1',
     image: null,
 });
 
@@ -44,7 +44,7 @@ const editForm = useForm({
     category: '',
     status: '',
     serial_number: '',
-    total_quantity: 1,
+    total_quantity: '1',
     image: null,
 });
 
@@ -81,7 +81,7 @@ const openEditModal = (equipment) => {
     editForm.category = equipment.category;
     editForm.status = equipment.status;
     editForm.serial_number = equipment.serial_number || '';
-    editForm.total_quantity = equipment.total_quantity || 1;
+    editForm.total_quantity = String(equipment.total_quantity || 1);
     editForm.image = null;
     showEditModal.value = true;
 };
