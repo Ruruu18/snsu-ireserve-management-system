@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\Reservation;
 use App\Models\Equipment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -124,10 +125,10 @@ class AdminController extends Controller
         ]);
     }
 
-        /**
+    /**
      * Store a newly created student.
      */
-public function storeStudent(Request $request)
+    public function storeStudent(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -192,7 +193,7 @@ public function storeStudent(Request $request)
      */
     public function getStudents(Request $request)
     {
-        $query = User::where('role', 'student');
+        $query = User::where('role', 'student')->with('department');
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
@@ -231,12 +232,10 @@ public function storeStudent(Request $request)
             return back()->withErrors(['status' => 'Only pending reservations can be approved.']);
         }
 
-        $oldStatus = $reservation->status;
-
         $reservation->update([
             'status' => 'approved',
             'approved_at' => now(),
-            'approved_by' => auth()->id(),
+            'approved_by' => Auth::id(),
         ]);
 
         // Broadcast status update
@@ -256,8 +255,6 @@ public function storeStudent(Request $request)
         $request->validate([
             'admin_notes' => 'nullable|string|max:500',
         ]);
-
-        $oldStatus = $reservation->status;
 
         $reservation->update([
             'status' => 'cancelled',
@@ -282,12 +279,10 @@ public function storeStudent(Request $request)
             'admin_notes' => 'nullable|string|max:500',
         ]);
 
-        $oldStatus = $reservation->status;
-
         $reservation->update([
             'status' => 'completed',
             'returned_at' => now(),
-            'returned_by' => auth()->id(),
+            'returned_by' => Auth::id(),
             'admin_notes' => $request->admin_notes,
         ]);
 
