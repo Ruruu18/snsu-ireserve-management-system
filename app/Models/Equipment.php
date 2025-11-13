@@ -58,19 +58,19 @@ class Equipment extends Model
         // Check through reservation items to see if this equipment is reserved
         $query = ReservationItem::where('equipment_id', $this->id)
             ->whereHas('reservation', function ($q) use ($date, $startTime, $endTime, $excludeReservationId) {
-                $q->where('reservation_date', $date)
-                  ->where('status', '!=', 'cancelled')
+                $q->where('reservations.reservation_date', $date)
+                  ->where('reservations.status', '!=', 'cancelled')
                   ->where(function ($q2) use ($startTime, $endTime) {
-                      $q2->whereBetween('start_time', [$startTime, $endTime])
-                        ->orWhereBetween('end_time', [$startTime, $endTime])
+                      $q2->whereBetween('reservations.start_time', [$startTime, $endTime])
+                        ->orWhereBetween('reservations.end_time', [$startTime, $endTime])
                         ->orWhere(function ($q3) use ($startTime, $endTime) {
-                            $q3->where('start_time', '<=', $startTime)
-                                ->where('end_time', '>=', $endTime);
+                            $q3->where('reservations.start_time', '<=', $startTime)
+                                ->where('reservations.end_time', '>=', $endTime);
                         });
                   });
 
                 if ($excludeReservationId) {
-                    $q->where('id', '!=', $excludeReservationId);
+                    $q->where('reservations.id', '!=', $excludeReservationId);
                 }
             });
 
@@ -99,9 +99,9 @@ class Equipment extends Model
     public function getCurrentlyIssuedQuantity()
     {
         return $this->reservationItems()
-            ->where('status', 'issued')
+            ->where('reservation_items.status', 'issued')
             ->whereHas('reservation', function ($query) {
-                $query->where('status', 'issued');
+                $query->where('reservations.status', 'issued');
             })
             ->sum('quantity');
     }
@@ -120,9 +120,9 @@ class Equipment extends Model
     public function getPendingQuantity()
     {
         return $this->reservationItems()
-            ->where('status', 'pending')
+            ->where('reservation_items.status', 'pending')
             ->whereHas('reservation', function ($query) {
-                $query->whereIn('status', ['pending', 'approved']);
+                $query->whereIn('reservations.status', ['pending', 'approved']);
             })
             ->sum('quantity');
     }
@@ -133,9 +133,9 @@ class Equipment extends Model
     public function getTotalReservedQuantity()
     {
         return $this->reservationItems()
-            ->whereIn('status', ['pending', 'issued'])
+            ->whereIn('reservation_items.status', ['pending', 'issued'])
             ->whereHas('reservation', function ($query) {
-                $query->whereIn('status', ['pending', 'approved', 'issued']);
+                $query->whereIn('reservations.status', ['pending', 'approved', 'issued']);
             })
             ->sum('quantity');
     }
@@ -167,7 +167,7 @@ class Equipment extends Model
     {
         return $this->reservationItems()
             ->whereHas('reservation', function ($query) {
-                $query->whereIn('status', ['issued', 'return_requested']);
+                $query->whereIn('reservations.status', ['issued', 'return_requested']);
             })
             ->with(['reservation.user'])
             ->get()
