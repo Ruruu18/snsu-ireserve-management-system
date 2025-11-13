@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EquipmentController;
@@ -32,11 +33,11 @@ Route::get('/faculty-dashboard', function () {
     return Inertia::render('Faculty/FacultyDashboard');
 })->middleware(['auth', 'verified', 'admin'])->name('faculty.dashboard');
 
-Route::get('/admin-dashboard/stats', [AdminController::class, 'getDashboardStats'])
+Route::get('/admin-dashboard/stats', [AdminDashboardController::class, 'getDashboardStats'])
     ->middleware(['auth', 'verified', 'admin.only'])
     ->name('dashboard.stats');
 
-Route::get('/admin/reservations/recent', [AdminController::class, 'getRecentReservations'])
+Route::get('/admin/reservations/recent', [AdminDashboardController::class, 'getRecentReservations'])
     ->middleware(['auth', 'verified', 'admin.only'])
     ->name('admin.reservations.recent');
 
